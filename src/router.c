@@ -50,7 +50,7 @@ static double point_lon[NWAYPOINTS+1],point_lat[NWAYPOINTS+1];
 int option_quiet=0;
 
 /*+ The options to select the format of the output. +*/
-int option_html=0,option_gpx_track=0,option_gpx_route=0,option_text=0,options_stdout=0,option_text_all=0,option_none=0;
+int option_html=0,option_gpx_track=0,option_gpx_route=0,option_text=0,option_stdout=0,option_text_all=0,option_none=0;
 
 /*+ The option to calculate the quickest route insted of the shortest. +*/
 int option_quickest=0;
@@ -124,7 +124,7 @@ int main(int argc,char** argv)
     else if(!strcmp(argv[arg],"--output-text"))
        option_text=1;
     else if(!strcmp(argv[arg],"--output-stdout"))
-       options_stdout = 1;
+       option_stdout = 1;
     else if(!strcmp(argv[arg],"--output-text-all"))
        option_text_all=1;
     else if(!strcmp(argv[arg],"--output-none"))
@@ -364,7 +364,7 @@ int main(int argc,char** argv)
 
  /* Load in the translations */
 
- if(option_html==0 && option_gpx_track==0 && option_gpx_route==0 && option_text==0 && option_text_all==0 && option_none==0)
+ if(option_html==0 && option_gpx_track==0 && option_gpx_route==0 && option_text==0 && option_stdout==0 && option_text_all==0 && option_none==0)
     option_html=option_gpx_track=option_gpx_route=option_text=option_text_all=1;
 
  if(option_html || option_gpx_route || option_gpx_track)
