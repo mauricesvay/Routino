@@ -50,7 +50,7 @@
 extern int option_quickest;
 
 /*+ The options to select the format of the output. +*/
-extern int option_html,option_gpx_track,option_gpx_route,option_text,option_text_all;
+extern int option_html,option_gpx_track,option_gpx_route,option_text,options_stdout,option_text_all;
 
 /* Local variables */
 
@@ -120,6 +120,8 @@ void PrintRoute(Results **results,int nresults,Nodes *nodes,Segments *segments,W
        gpxroutefile=fopen("shortest-route.gpx","w");
     if(option_text)
        textfile    =fopen("shortest.txt","w");
+    if(options_stdout)
+       textfile    = stdout;
     if(option_text_all)
        textallfile =fopen("shortest-all.txt","w");
 
@@ -146,6 +148,8 @@ void PrintRoute(Results **results,int nresults,Nodes *nodes,Segments *segments,W
        gpxroutefile=fopen("quickest-route.gpx","w");
     if(option_text)
        textfile    =fopen("quickest.txt","w");
+    if(options_stdout)
+       textfile    = stdout;
     if(option_text_all)
        textallfile =fopen("quickest-all.txt","w");
 
