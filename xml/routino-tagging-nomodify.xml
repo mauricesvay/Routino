@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 
 <!-- ============================================================
-     $Header: /home/amb/routino/xml/RCS/routino-tagging-nomodify.xml,v 1.5 2010/09/17 17:40:55 amb Exp $
+     $Header: /home/amb/CVS/routino/xml/routino-tagging-nomodify.xml,v 1.5 2010-09-17 17:40:55 amb Exp $
 
      An XML format file containing Routino tagging rules - copy the input file
      directly to the output with no modifications (e.g. importing a file dumped

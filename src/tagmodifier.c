@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/tagmodifier.c,v 1.8 2010/11/13 14:22:28 amb Exp $
-
  Test application for OSM XML file parser / tagging rule testing.
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2010 Andrew M. Bishop
+ This file Copyright 2010-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -36,7 +34,10 @@
 
 /* Local variables */
 
-static long nnodes=0,nways=0,nrelations=0;
+static unsigned long nnodes=0;
+static unsigned long nways=0;
+static unsigned long nrelations=0;
+
 TagList *current_tags=NULL;
 
 
@@ -254,19 +255,29 @@ static int tagType_function(const char *_tag_,int _type_,const char *k,const cha
 
 static int nodeType_function(const char *_tag_,int _type_,const char *id,const char *lat,const char *lon,const char *timestamp,const char *uid,const char *user,const char *visible,const char *version,const char *action)
 {
+ static node_t node_id;
+
  if(_type_&XMLPARSE_TAG_START)
    {
+    long long llid;
+
     nnodes++;
 
-    if(!(nnodes%1000))
-       fprintf_middle(stderr,"Reading: Lines=%ld Nodes=%ld Ways=%ld Relations=%ld",ParseXML_LineNumber(),nnodes,nways,nrelations);
+    if(!(nnodes%10000))
+       fprintf_middle(stderr,"Reading: Lines=%llu Nodes=%lu Ways=%lu Relations=%lu",ParseXML_LineNumber(),nnodes,nways,nrelations);
 
     current_tags=NewTagList();
+
+    /* Handle the node information */
+
+    XMLPARSE_ASSERT_INTEGER(_tag_,id);   llid=atoll(id); /* need long long conversion */
+    node_id=(node_t)llid;
+    assert((long long)node_id==llid);      /* check node id can be stored in node_t data type. */
    }
 
  if(_type_&XMLPARSE_TAG_END)
    {
-    TagList *result=ApplyTaggingRules(&NodeRules,current_tags);
+    TagList *result=ApplyTaggingRules(&NodeRules,current_tags,node_id);
     int i;
 
     for(i=0;i<result->ntags;i++)
@@ -370,19 +381,30 @@ static int memberType_function(const char *_tag_,int _type_,const char *type,con
 
 static int wayType_function(const char *_tag_,int _type_,const char *id,const char *timestamp,const char *uid,const char *user,const char *visible,const char *version,const char *action)
 {
+ static way_t way_id;
+
  if(_type_&XMLPARSE_TAG_START)
    {
+    long long llid;
+
     nways++;
 
     if(!(nways%1000))
-       fprintf_middle(stderr,"Reading: Lines=%ld Nodes=%ld Ways=%ld Relations=%ld",ParseXML_LineNumber(),nnodes,nways,nrelations);
+       fprintf_middle(stderr,"Reading: Lines=%llu Nodes=%lu Ways=%lu Relations=%lu",ParseXML_LineNumber(),nnodes,nways,nrelations);
 
     current_tags=NewTagList();
+
+    /* Handle the way information */
+
+    XMLPARSE_ASSERT_INTEGER(_tag_,id); llid=atoll(id); /* need long long conversion */
+
+    way_id=(way_t)llid;
+    assert((long long)way_id==llid);   /* check way id can be stored in way_t data type. */
    }
 
  if(_type_&XMLPARSE_TAG_END)
    {
-    TagList *result=ApplyTaggingRules(&WayRules,current_tags);
+    TagList *result=ApplyTaggingRules(&WayRules,current_tags,way_id);
     int i;
 
     for(i=0;i<result->ntags;i++)
@@ -436,19 +458,30 @@ static int wayType_function(const char *_tag_,int _type_,const char *id,const ch
 
 static int relationType_function(const char *_tag_,int _type_,const char *id,const char *timestamp,const char *uid,const char *user,const char *visible,const char *version,const char *action)
 {
+ static relation_t relation_id;
+
  if(_type_&XMLPARSE_TAG_START)
    {
+    long long llid;
+
     nrelations++;
 
     if(!(nrelations%1000))
-       fprintf_middle(stderr,"Reading: Lines=%ld Nodes=%ld Ways=%ld Relations=%ld",ParseXML_LineNumber(),nnodes,nways,nrelations);
+       fprintf_middle(stderr,"Reading: Lines=%llu Nodes=%lu Ways=%lu Relations=%lu",ParseXML_LineNumber(),nnodes,nways,nrelations);
 
     current_tags=NewTagList();
+
+    /* Handle the relation information */
+
+    XMLPARSE_ASSERT_INTEGER(_tag_,id); llid=atoll(id); /* need long long conversion */
+
+    relation_id=(relation_t)llid;
+    assert((long long)relation_id==llid);   /* check relation id can be stored in relation_t data type. */
    }
 
  if(_type_&XMLPARSE_TAG_END)
    {
-    TagList *result=ApplyTaggingRules(&RelationRules,current_tags);
+    TagList *result=ApplyTaggingRules(&RelationRules,current_tags,relation_id);
     int i;
 
     for(i=0;i<result->ntags;i++)
@@ -525,7 +558,7 @@ static int xmlDeclaration_function(const char *_tag_,int _type_,const char *vers
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  The main program for the planetsplitter.
+  The main program for the tagmodifier.
   ++++++++++++++++++++++++++++++++++++++*/
 
 int main(int argc,char **argv)
@@ -600,7 +633,7 @@ int main(int argc,char **argv)
 
  retval=ParseXML(file,xml_toplevel_tags,XMLPARSE_UNKNOWN_ATTR_IGNORE);
 
- fprintf_last(stderr,"Read: Lines=%ld Nodes=%ld Ways=%ld Relations=%ld",ParseXML_LineNumber(),nnodes,nways,nrelations);
+ fprintf_last(stderr,"Read: Lines=%llu Nodes=%lu Ways=%lu Relations=%lu",ParseXML_LineNumber(),nnodes,nways,nrelations);
 
  /* Tidy up */
 

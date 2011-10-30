@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/logging.c,v 1.1 2010/11/13 14:22:40 amb Exp $
-
  Functions to handle logging functions.
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -24,13 +22,17 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 
 #include "logging.h"
 
 
+/* Global variables */
+
 /*+ The option to print the output in a way that allows logging to a file. +*/
 int option_loggable=0;
-
 
 /* Local functions */
 
@@ -40,11 +42,15 @@ static void vfprintf_last(FILE *file,const char *format,va_list ap);
 
 /* Local variables */
 
+/*+ The length of the string printed out last time. +*/
 static int printed_length=0;
+
+/*+ The file handle for the error log file. +*/
+static FILE *errorlogfile;
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Print the first message in an overwriting sequence.
+  Print the first message in an overwriting sequence (to stdout).
 
   const char *format The format string.
 
@@ -67,7 +73,7 @@ void printf_first(const char *format, ...)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Print the middle message in an overwriting sequence.
+  Print the middle message in an overwriting sequence (to stdout).
 
   const char *format The format string.
 
@@ -90,7 +96,7 @@ void printf_middle(const char *format, ...)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Print the last message in an overwriting sequence.
+  Print the last message in an overwriting sequence (to stdout).
 
   const char *format The format string.
 
@@ -110,7 +116,7 @@ void printf_last(const char *format, ...)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Print the first message in an overwriting sequence.
+  Print the first message in an overwriting sequence to a specified file.
 
   FILE *file The file to write to.
 
@@ -135,7 +141,7 @@ void fprintf_first(FILE *file,const char *format, ...)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Print the middle message in an overwriting sequence.
+  Print the middle message in an overwriting sequence to a specified file.
 
   FILE *file The file to write to.
 
@@ -160,7 +166,7 @@ void fprintf_middle(FILE *file,const char *format, ...)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Print the last message in an overwriting sequence.
+  Print the last message in an overwriting sequence to a specified file.
 
   FILE *file The file to write to.
 
@@ -182,7 +188,7 @@ void fprintf_last(FILE *file,const char *format, ...)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Print the first message in an overwriting sequence.
+  Do the work to print the first message in an overwriting sequence.
 
   FILE *file The file to write to.
 
@@ -204,7 +210,7 @@ static void vfprintf_first(FILE *file,const char *format,va_list ap)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Print the middle message in an overwriting sequence.
+  Do the work to print the middle message in an overwriting sequence.
 
   FILE *file The file to write to.
 
@@ -222,12 +228,19 @@ static void vfprintf_middle(FILE *file,const char *format,va_list ap)
  fflush(file);
 
  if(retval>0)
-    printed_length=retval;
+   {
+    int new_printed_length=retval;
+
+    while(retval++<printed_length)
+       putchar(' ');
+
+    printed_length=new_printed_length;
+   }
 }
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Print the last message in an overwriting sequence.
+  Do the work to print the last message in an overwriting sequence.
 
   FILE *file The file to write to.
 
@@ -250,4 +263,58 @@ static void vfprintf_last(FILE *file,const char *format,va_list ap)
 
  putchar('\n');
  fflush(file);
+}
+
+
+/*++++++++++++++++++++++++++++++++++++++
+  Create the error log file.
+
+  const char *filename The name of the file to create.
+
+  int append The option to append to an existing file.
+  ++++++++++++++++++++++++++++++++++++++*/
+
+void open_errorlog(const char *filename,int append)
+{
+ errorlogfile=fopen(filename,append?"a":"w");
+
+ if(!errorlogfile)
+   {
+    fprintf(stderr,"Cannot open file '%s' for writing [%s].\n",filename,strerror(errno));
+    exit(EXIT_FAILURE);
+   }
+}
+
+
+/*++++++++++++++++++++++++++++++++++++++
+  Close the error log file.
+  ++++++++++++++++++++++++++++++++++++++*/
+
+void close_errorlog(void)
+{
+ if(errorlogfile)
+    fclose(errorlogfile);
+}
+
+
+/*++++++++++++++++++++++++++++++++++++++
+  Log a message to the error log file.
+
+  const char *format The format string.
+
+  ... The other arguments.
+  ++++++++++++++++++++++++++++++++++++++*/
+
+void logerror(const char *format, ...)
+{
+ va_list ap;
+
+ if(!errorlogfile)
+    return;
+
+ va_start(ap,format);
+
+ vfprintf(errorlogfile,format,ap);
+
+ va_end(ap);
 }

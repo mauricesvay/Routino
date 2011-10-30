@@ -22,7 +22,7 @@ planetsplitter
                         [--sort-ram-size=<size>]
                         [--tmpdir=<dirname>]
                         [--parse-only | --process-only]
-                        [--loggable]
+                        [--loggable] [--errorlog[=<name>]]
                         [--max-iterations=<number>]
                         [--tagging=<filename>]
                         [<filename.osm> ...]
@@ -59,11 +59,16 @@ planetsplitter
    --loggable
           Print progress messages that are suitable for logging to a file;
           normally an incrementing counter is printed which is more
-          suitable for realtime display than logging.
+          suitable for real-time display than logging.
+
+   --errorlog[=<name>]
+          Log OSM parsing and processing errors to 'error.log' or the
+          specified file name (the '--dir' and '--prefix' options are
+          applied).
 
    --max-iterations=<number>
           The maximum number of iterations to use when generating
-          super-nodes and super-segments. Defaults to 10 which is normally
+          super-nodes and super-segments. Defaults to 5 which is normally
           enough.
 
    --tagging=<filename>
@@ -80,8 +85,7 @@ planetsplitter
 
    Note: In version 1.4 of Routino the --transport, --not-highway and
    --not-property options have been removed. The same functionality can be
-   achieved by editing the tagging rules file to not output unwwanted
-   data.
+   achieved by editing the tagging rules file to not output unwanted data.
 
    Note: In version 1.5 of Routino the --slim option has been removed but
    at compilation time a separate program called planetsplitter-slim is
@@ -122,10 +126,11 @@ router
                 --lon1=<longitude> --lat1=<latitude>
                 --lon2=<longitude> --lon2=<latitude>
                 [ ... --lon99=<longitude> --lon99=<latitude>]
+                [--heading=<bearing>]
                 [--highway-<highway>=<preference> ...]
                 [--speed-<highway>=<speed> ...]
                 [--property-<property>=<preference> ...]
-                [--oneway=(0|1)]
+                [--oneway=(0|1)] [--turns=(0|1)]
                 [--weight=<weight>]
                 [--height=<height>] [--width=<width>] [--length=<length>]
 
@@ -180,7 +185,7 @@ router
    --loggable
           Print progress messages that are suitable for logging to a file;
           normally an incrementing counter is printed which is more
-          suitable for realtime display than logging.
+          suitable for real-time display than logging.
 
    --quiet
           Don't generate any screen output while running (useful for
@@ -242,6 +247,11 @@ router
           sequence. The algorithm will use the closest node or point
           within a segment that allows the specified traffic type.
 
+   --heading=<bearing>
+          Specifies the initial direction of travel at the start of the
+          route (from the lowest numbered waypoint) as a compass bearing
+          from 0 to 360 degrees.
+
    --highway-<highway>=<preference>
           Selects the percentage preference for using each particular type
           of highway. The value of <highway> can be selected from:
@@ -286,6 +296,11 @@ router
           Selects if the direction of oneway streets are to be obeyed
           (useful to not obey them when walking). Default value depends on
           the profile selected by the --transport option.
+
+   --turns=[0|1]
+          Selects if turn restrictions are to be obeyed (useful to not
+          obey them when walking). Default value depends on the profile
+          selected by the --transport option.
 
    --weight=<weight>
           Specifies the weight of the mode of transport in tonnes; ensures
@@ -353,7 +368,8 @@ filedumper
                                   --data=<data-type>]
                     [--dump [--node=<node> ...]
                             [--segment=<segment> ...]
-                            [--way=<way> ...]]
+                            [--way=<way> ...]
+                            [--turn-relation=<relation> ...]]
                     [--dump-osm [--no-super]
                                 [--latmin=<latmin> --latmax=<latmax>
                                  --lonmin=<lonmin> --lonmax=<lonmax>]]
@@ -388,6 +404,7 @@ filedumper
                o junctions = segment count at each junction.
                o super = super-node and super-segments.
                o oneway = oneway segments.
+               o turns = turn restrictions.
                o speed = speed limits.
                o weight = weight limits.
                o height = height limits.
@@ -397,7 +414,8 @@ filedumper
    --dump
           Selects a data dumping mode which allows looking at individual
           items in the databases (specifying 'all' instead of a number
-          dumps all of them).
+          dumps all of them). More than one of the following parameters
+          can be specified on the command line.
 
         --node=<node>
                 Prints the information about the selected node number
@@ -411,6 +429,11 @@ filedumper
                 Prints the information about the selected way number
                 (internal number, not the way id number in the original
                 source file).
+
+        --turn-relation=<relation>
+                Prints the information about the selected turn relation
+                number (internal number, not the relation id number in the
+                original source file).
 
    --osm-dump
           Dumps the contents of the database as an OSM format XML file,
@@ -431,6 +454,7 @@ filedumper
    that operates in slim mode. In slim mode the database files are read as
    needed rather than being mapped into memory.
 
+
 tagmodifier
 -----------
 
@@ -448,7 +472,7 @@ tagmodifier
    --loggable
           Print progress messages that are suitable for logging to a file;
           normally an incrementing counter is printed which is more
-          suitable for realtime display than logging.
+          suitable for real-time display than logging.
 
    --tagging=<filename>
           The name of the XML file containing the tagging rules (defaults
@@ -461,4 +485,4 @@ tagmodifier
 
 --------
 
-Copyright 2008-2010 Andrew M. Bishop.
+Copyright 2008-2011 Andrew M. Bishop.

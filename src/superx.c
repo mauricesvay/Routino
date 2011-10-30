@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/superx.c,v 1.45 2010/11/13 14:22:28 amb Exp $
-
  Super-Segment data type functions.
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -22,6 +20,7 @@
  ***************************************/
 
 
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -37,25 +36,25 @@
 #include "results.h"
 
 
-/* Local Functions */
+/* Local functions */
 
-static Results *FindRoutesWay(NodesX *nodesx,SegmentsX *segmentsx,WaysX *waysx,node_t start,Way *match,int iteration);
+static Results *FindRoutesWay(NodesX *nodesx,SegmentsX *segmentsx,WaysX *waysx,node_t start,Way *match);
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Select the super-segments from the list of segments.
+  Select the super-nodes from the list of nodes.
 
-  NodesX *nodesx The nodes.
+  NodesX *nodesx The set of nodes to use.
 
-  SegmentsX *segmentsx The segments.
+  SegmentsX *segmentsx The set of segments to use.
 
-  WaysX *waysx The ways.
+  WaysX *waysx The set of ways to use.
   ++++++++++++++++++++++++++++++++++++++*/
 
 void ChooseSuperNodes(NodesX *nodesx,SegmentsX *segmentsx,WaysX *waysx)
 {
  index_t i;
- int nnodes=0;
+ index_t nnodes=0;
 
  if(nodesx->number==0 || segmentsx->number==0 || waysx->number==0)
     return;
@@ -64,107 +63,139 @@ void ChooseSuperNodes(NodesX *nodesx,SegmentsX *segmentsx,WaysX *waysx)
 
  printf_first("Finding Super-Nodes: Nodes=0 Super-Nodes=0");
 
- /* Map into memory */
+ /* Map into memory / open the files */
 
 #if !SLIM
- nodesx->xdata=MapFile(nodesx->filename);
- segmentsx->xdata=MapFile(segmentsx->filename);
- waysx->xdata=MapFile(waysx->filename);
+ nodesx->data=MapFile(nodesx->filename);
+ segmentsx->data=MapFile(segmentsx->filename);
+ waysx->data=MapFile(waysx->filename);
+#else
+ nodesx->fd=ReOpenFile(nodesx->filename);
+ segmentsx->fd=ReOpenFile(segmentsx->filename);
+ waysx->fd=ReOpenFile(waysx->filename);
 #endif
 
  /* Find super-nodes */
 
  for(i=0;i<nodesx->number;i++)
    {
-    NodeX *nodex=LookupNodeX(nodesx,i,1);
-    int difference=0;
-    index_t index1,index2;
-
-    index1=IndexFirstSegmentX(segmentsx,i);
-
-    while(index1!=NO_SEGMENT)
+    if(IsBitSet(nodesx->super,i))
       {
-       SegmentX *segmentx1=LookupSegmentX(segmentsx,index1,1);
-       WayX *wayx1=LookupWayX(waysx,segmentx1->way,1);
+       int issuper=0;
+       NodeX *nodex=LookupNodeX(nodesx,i,1);
 
-       index1=IndexNextSegmentX(segmentsx,index1,i);
-       index2=index1;
-
-       /* If the node allows less traffic types than any connecting way ... */
-
-       if((wayx1->way.allow&nodex->allow)!=wayx1->way.allow)
+       if(nodex->flags&(NODE_TURNRSTRCT|NODE_TURNRSTRCT2))
+          issuper=1;
+       else
          {
-          difference=1;
-          break;
-         }
+          int count=0,j;
+          Way segmentway[MAX_SEG_PER_NODE];
+          int segmentweight[MAX_SEG_PER_NODE];
+          SegmentX *segmentx=FirstSegmentX(segmentsx,i,1);
 
-       while(index2!=NO_SEGMENT)
-         {
-          SegmentX *segmentx2=LookupSegmentX(segmentsx,index2,2);
-          WayX *wayx2=LookupWayX(waysx,segmentx2->way,2);
+          while(segmentx)
+            {
+             WayX *wayx=LookupWayX(waysx,segmentx->way,1);
+             int nsegments;
 
-          /* If the ways are different in any attribute and there is a type of traffic that can use both ... */
+             /* Segments that are loops count twice */
 
-          if(WaysCompare(&wayx1->way,&wayx2->way))
-             if(wayx1->way.allow & wayx2->way.allow)
+             assert(count<MAX_SEG_PER_NODE); /* Only a limited amount of information stored. */
+
+             if(segmentx->node1==segmentx->node2)
+                segmentweight[count]=2;
+             else
+                segmentweight[count]=1;
+
+             segmentway[count]=wayx->way;
+
+             /* If the node allows less traffic types than any connecting way then it is super */
+
+             if((wayx->way.allow&nodex->allow)!=wayx->way.allow)
                {
-                difference=1;
+                issuper=1;
                 break;
                }
 
-          index2=IndexNextSegmentX(segmentsx,index2,i);
+             nsegments=segmentweight[count];
+
+             for(j=0;j<count;j++)
+                if(wayx->way.allow & segmentway[j].allow)
+                  {
+                   /* If two ways are different in any attribute and there is a type of traffic that can use both then it is super */
+
+                   if(WaysCompare(&segmentway[j],&wayx->way))
+                     {
+                      issuper=1;
+                      break;
+                     }
+
+                   /* If there are two other segments that can be used by the same types of traffic as this one then it is super */
+
+                   nsegments+=segmentweight[j];
+                   if(nsegments>2)
+                     {
+                      issuper=1;
+                      break;
+                     }
+                  }
+
+             if(issuper)
+                break;
+
+             segmentx=NextSegmentX(segmentsx,segmentx,i,1);
+
+             count++;
+            }
          }
 
-       if(difference)
-          break;
-      }
+       /* Mark the node as super if it is. */
 
-    /* Store the node if there is a difference in the connected ways that could affect routing. */
-
-    if(difference)
-      {
-       nodesx->super[i]++;
-
-       nnodes++;
+       if(issuper)
+          nnodes++;
+       else
+          ClearBit(nodesx->super,i);
       }
 
     if(!((i+1)%10000))
-       printf_middle("Finding Super-Nodes: Nodes=%d Super-Nodes=%d",i+1,nnodes);
+       printf_middle("Finding Super-Nodes: Nodes=%"Pindex_t" Super-Nodes=%"Pindex_t,i+1,nnodes);
    }
 
- /* Unmap from memory */
+ /* Unmap from memory / close the files */
 
 #if !SLIM
- nodesx->xdata=UnmapFile(nodesx->filename);
- segmentsx->xdata=UnmapFile(segmentsx->filename);
- waysx->xdata=UnmapFile(waysx->filename);
+ nodesx->data=UnmapFile(nodesx->filename);
+ segmentsx->data=UnmapFile(segmentsx->filename);
+ waysx->data=UnmapFile(waysx->filename);
+#else
+ nodesx->fd=CloseFile(nodesx->fd);
+ segmentsx->fd=CloseFile(segmentsx->fd);
+ waysx->fd=CloseFile(waysx->fd);
 #endif
 
  /* Print the final message */
 
- printf_last("Found Super-Nodes: Nodes=%d Super-Nodes=%d",nodesx->number,nnodes);
+ printf_last("Found Super-Nodes: Nodes=%"Pindex_t" Super-Nodes=%"Pindex_t,nodesx->number,nnodes);
 }
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Create the super-segments.
+  Create the super-segments from the existing segments.
 
-  SegmentsX *CreateSuperSegments Creates the super segments.
+  SegmentsX *CreateSuperSegments Returns the new super segments.
 
-  NodesX *nodesx The nodes.
+  NodesX *nodesx The set of nodes to use.
 
-  SegmentsX *segmentsx The segments.
+  SegmentsX *segmentsx The set of segments to use.
 
-  WaysX *waysx The ways.
-
-  int iteration The current super-node / super-segment iteration number.
+  WaysX *waysx The set of ways to use.
   ++++++++++++++++++++++++++++++++++++++*/
 
-SegmentsX *CreateSuperSegments(NodesX *nodesx,SegmentsX *segmentsx,WaysX *waysx,int iteration)
+SegmentsX *CreateSuperSegments(NodesX *nodesx,SegmentsX *segmentsx,WaysX *waysx)
 {
  index_t i;
  SegmentsX *supersegmentsx;
- int sn=0,ss=0;
+ index_t sn=0,ss=0;
 
  supersegmentsx=NewSegmentList(0);
 
@@ -175,65 +206,65 @@ SegmentsX *CreateSuperSegments(NodesX *nodesx,SegmentsX *segmentsx,WaysX *waysx,
 
  printf_first("Creating Super-Segments: Super-Nodes=0 Super-Segments=0");
 
- /* Map into memory */
+ /* Map into memory / open the files */
 
 #if !SLIM
- segmentsx->xdata=MapFile(segmentsx->filename);
- waysx->xdata=MapFile(waysx->filename);
+ segmentsx->data=MapFile(segmentsx->filename);
+ waysx->data=MapFile(waysx->filename);
+#else
+ segmentsx->fd=ReOpenFile(segmentsx->filename);
+ waysx->fd=ReOpenFile(waysx->filename);
 #endif
 
  /* Create super-segments for each super-node. */
 
  for(i=0;i<nodesx->number;i++)
    {
-    if(nodesx->super[i]>iteration)
+    if(IsBitSet(nodesx->super,i))
       {
-       index_t index,first;
+       SegmentX *segmentx;
+       int count=0,match;
+       Way prevway[MAX_SEG_PER_NODE];
 
-       index=first=IndexFirstSegmentX(segmentsx,i);
+       segmentx=FirstSegmentX(segmentsx,i,1);
 
-       while(index!=NO_SEGMENT)
+       while(segmentx)
          {
-          SegmentX *segmentx=LookupSegmentX(segmentsx,index,1);
           WayX *wayx=LookupWayX(waysx,segmentx->way,1);
 
           /* Check that this type of way hasn't already been routed */
 
-          if(index!=first)
+          match=0;
+
+          if(count>0)
             {
-             index_t otherindex=first;
+             int j;
 
-             while(otherindex!=NO_SEGMENT && otherindex!=index)
-               {
-                SegmentX *othersegmentx=LookupSegmentX(segmentsx,otherindex,2);
-                WayX *otherwayx=LookupWayX(waysx,othersegmentx->way,2);
-
-                if(!WaysCompare(&otherwayx->way,&wayx->way))
+             for(j=0;j<count;j++)
+                if(!WaysCompare(&prevway[j],&wayx->way))
                   {
-                   wayx=NULL;
+                   match=1;
                    break;
                   }
-
-                otherindex=IndexNextSegmentX(segmentsx,otherindex,i);
-               }
             }
+
+          assert(count<MAX_SEG_PER_NODE); /* Only a limited amount of history stored. */
+
+          prevway[count++]=wayx->way;
 
           /* Route the way and store the super-segments. */
 
-          if(wayx)
+          if(!match)
             {
-             Results *results=FindRoutesWay(nodesx,segmentsx,waysx,i,&wayx->way,iteration);
+             Results *results=FindRoutesWay(nodesx,segmentsx,waysx,i,&wayx->way);
              Result *result=FirstResult(results);
 
              while(result)
                {
-                if(result->node!=i && nodesx->super[result->node]>iteration)
+                if(IsBitSet(nodesx->super,result->node) && result->segment!=NO_SEGMENT)
                   {
-                   if(wayx->way.type&Way_OneWay)
-                     {
+                   if(wayx->way.type&Way_OneWay && result->node!=i)
                       AppendSegment(supersegmentsx,segmentx->way,i,result->node,DISTANCE((distance_t)result->score)|ONEWAY_1TO2);
-                      AppendSegment(supersegmentsx,segmentx->way,result->node,i,DISTANCE((distance_t)result->score)|ONEWAY_2TO1);
-                     }
                    else
                       AppendSegment(supersegmentsx,segmentx->way,i,result->node,DISTANCE((distance_t)result->score));
 
@@ -246,26 +277,29 @@ SegmentsX *CreateSuperSegments(NodesX *nodesx,SegmentsX *segmentsx,WaysX *waysx,
              FreeResultsList(results);
             }
 
-          index=IndexNextSegmentX(segmentsx,index,i);
+          segmentx=NextSegmentX(segmentsx,segmentx,i,1);
          }
 
        sn++;
 
        if(!(sn%10000))
-          printf_middle("Creating Super-Segments: Super-Nodes=%d Super-Segments=%d",sn,ss);
+          printf_middle("Creating Super-Segments: Super-Nodes=%"Pindex_t" Super-Segments=%"Pindex_t,sn,ss);
       }
    }
 
- /* Unmap from memory */
+ /* Unmap from memory / close the files */
 
 #if !SLIM
- segmentsx->xdata=UnmapFile(segmentsx->filename);
- waysx->xdata=UnmapFile(waysx->filename);
+ segmentsx->data=UnmapFile(segmentsx->filename);
+ waysx->data=UnmapFile(waysx->filename);
+#else
+ segmentsx->fd=CloseFile(segmentsx->fd);
+ waysx->fd=CloseFile(waysx->fd);
 #endif
 
  /* Print the final message */
 
- printf_last("Created Super-Segments: Super-Nodes=%d Super-Segments=%d",sn,ss);
+ printf_last("Created Super-Segments: Super-Nodes=%"Pindex_t" Super-Segments=%"Pindex_t,sn,ss);
 
  return(supersegmentsx);
 }
@@ -274,33 +308,38 @@ SegmentsX *CreateSuperSegments(NodesX *nodesx,SegmentsX *segmentsx,WaysX *waysx,
 /*++++++++++++++++++++++++++++++++++++++
   Merge the segments and super-segments into a new segment list.
 
-  SegmentsX* MergeSuperSegments Returns a new set of merged segments.
+  SegmentsX *MergeSuperSegments Returns a new set of merged segments.
 
-  SegmentsX* segmentsx The set of segments to process.
+  SegmentsX *segmentsx The set of segments to use.
 
-  SegmentsX* supersegmentsx The set of super-segments to merge.
+  SegmentsX *supersegmentsx The set of super-segments to use.
   ++++++++++++++++++++++++++++++++++++++*/
 
-SegmentsX *MergeSuperSegments(SegmentsX* segmentsx,SegmentsX* supersegmentsx)
+SegmentsX *MergeSuperSegments(SegmentsX *segmentsx,SegmentsX *supersegmentsx)
 {
  index_t i,j;
- int m=0,a=0;
- SegmentsX* mergedsegmentsx;
+ index_t merged=0,added=0;
+ SegmentsX *mergedsegmentsx;
 
  mergedsegmentsx=NewSegmentList(0);
 
- if(segmentsx->number==0 || supersegmentsx->number==0)
+ if(segmentsx->number==0)
     return(mergedsegmentsx);
 
  /* Print the start message */
 
- printf_first("Merging: Segments=0 Super-Segments=0 Merged=0 Added=0");
+ printf_first("Merging Segments: Segments=0 Super=0 Merged=0 Added=0");
 
- /* Map into memory */
+ /* Map into memory / open the files */
 
 #if !SLIM
- segmentsx->xdata=MapFile(segmentsx->filename);
- supersegmentsx->xdata=MapFile(supersegmentsx->filename);
+ segmentsx->data=MapFile(segmentsx->filename);
+ if(supersegmentsx->number>0)
+    supersegmentsx->data=MapFile(supersegmentsx->filename);
+#else
+ segmentsx->fd=ReOpenFile(segmentsx->filename);
+ if(supersegmentsx->number>0)
+    supersegmentsx->fd=ReOpenFile(supersegmentsx->filename);
 #endif
 
  /* Loop through and create a new list of combined segments */
@@ -318,7 +357,7 @@ SegmentsX *MergeSuperSegments(SegmentsX* segmentsx,SegmentsX* supersegmentsx)
           segmentx->node2   ==supersegmentx->node2 &&
           segmentx->distance==supersegmentx->distance)
          {
-          m++;
+          merged++;
           j++;
           /* mark as super-segment and normal segment */
           super=1;
@@ -332,7 +371,7 @@ SegmentsX *MergeSuperSegments(SegmentsX* segmentsx,SegmentsX* supersegmentsx)
          {
           /* mark as super-segment */
           AppendSegment(mergedsegmentsx,supersegmentx->way,supersegmentx->node1,supersegmentx->node2,supersegmentx->distance|SEGMENT_SUPER);
-          a++;
+          added++;
           j++;
          }
        else
@@ -348,26 +387,31 @@ SegmentsX *MergeSuperSegments(SegmentsX* segmentsx,SegmentsX* supersegmentsx)
        AppendSegment(mergedsegmentsx,segmentx->way,segmentx->node1,segmentx->node2,segmentx->distance|SEGMENT_NORMAL);
 
     if(!((i+1)%10000))
-       printf_middle("Merging: Segments=%d Super-Segments=%d Merged=%d Added=%d",i+1,j,m,a);
+       printf_middle("Merging Segments: Segments=%"Pindex_t" Super=%"Pindex_t" Merged=%"Pindex_t" Added=%"Pindex_t,i+1,j,merged,added);
    }
 
- /* Unmap from memory */
+ /* Unmap from memory / close the files */
 
 #if !SLIM
- segmentsx->xdata=UnmapFile(segmentsx->filename);
- supersegmentsx->xdata=UnmapFile(supersegmentsx->filename);
+ segmentsx->data=UnmapFile(segmentsx->filename);
+ if(supersegmentsx->number>0)
+    supersegmentsx->data=UnmapFile(supersegmentsx->filename);
+#else
+ segmentsx->fd=CloseFile(segmentsx->fd);
+ if(supersegmentsx->number>0)
+    supersegmentsx->fd=CloseFile(supersegmentsx->fd);
 #endif
 
  /* Print the final message */
 
- printf_last("Merged: Segments=%d Super-Segments=%d Merged=%d Added=%d",segmentsx->number,supersegmentsx->number,m,a);
+ printf_last("Merged Segments: Segments=%"Pindex_t" Super=%"Pindex_t" Merged=%"Pindex_t" Added=%"Pindex_t,segmentsx->number,supersegmentsx->number,merged,added);
 
  return(mergedsegmentsx);
 }
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Find all routes from a specified node to any node in the specified list that follows a certain type of way.
+  Find all routes from a specified super-node to any other super-node that follows a certain type of way.
 
   Results *FindRoutesWay Returns a set of results.
 
@@ -379,29 +423,23 @@ SegmentsX *MergeSuperSegments(SegmentsX* segmentsx,SegmentsX* supersegmentsx)
 
   node_t start The start node.
 
-  Way *match The way that the route must match.
-
-  int iteration The current super-node / super-segment iteration number.
+  Way *match A template for the type of way that the route must follow.
   ++++++++++++++++++++++++++++++++++++++*/
 
-static Results *FindRoutesWay(NodesX *nodesx,SegmentsX *segmentsx,WaysX *waysx,node_t start,Way *match,int iteration)
+static Results *FindRoutesWay(NodesX *nodesx,SegmentsX *segmentsx,WaysX *waysx,node_t start,Way *match)
 {
  Results *results;
  Queue *queue;
- index_t node1,node2;
  Result *result1,*result2;
- index_t index;
  WayX *wayx;
 
  /* Insert the first node into the queue */
 
- results=NewResultsList(8);
+ results=NewResultsList(4);
 
  queue=NewQueueList();
 
- result1=InsertResult(results,start);
-
- ZeroResult(result1);
+ result1=InsertResult(results,start,NO_SEGMENT);
 
  InsertInQueue(queue,result1);
 
@@ -409,56 +447,65 @@ static Results *FindRoutesWay(NodesX *nodesx,SegmentsX *segmentsx,WaysX *waysx,n
 
  while((result1=PopFromQueue(queue)))
    {
+    index_t node1;
+    SegmentX *segmentx;
+
     node1=result1->node;
 
-    index=IndexFirstSegmentX(segmentsx,node1);
+    segmentx=FirstSegmentX(segmentsx,node1,2); /* position 1 is already used */
 
-    while(index!=NO_SEGMENT)
+    while(segmentx)
       {
-       SegmentX *segmentx=LookupSegmentX(segmentsx,index,2); /* must use 2 here */
+       index_t node2,seg2;
        distance_t cumulative_distance;
 
-       if(segmentx->distance&ONEWAY_2TO1)
+       /* must not be one-way against the direction of travel */
+       if(IsOnewayTo(segmentx,node1))
           goto endloop;
 
-       node2=segmentx->node2;
+       node2=OtherNode(segmentx,node1);
 
-       if(result1->prev==node2)
+       seg2=IndexSegmentX(segmentsx,segmentx);
+
+       /* must not be a u-turn */
+       if(result1->segment==seg2)
           goto endloop;
 
        wayx=LookupWayX(waysx,segmentx->way,2);
 
+       /* must be the right type of way */
        if(WaysCompare(&wayx->way,match))
           goto endloop;
 
        cumulative_distance=(distance_t)result1->score+DISTANCE(segmentx->distance);
 
-       result2=FindResult(results,node2);
+       result2=FindResult(results,node2,seg2);
 
        if(!result2)                         /* New end node */
          {
-          result2=InsertResult(results,node2);
-          result2->prev=node1;
-          result2->next=NO_NODE;
+          result2=InsertResult(results,node2,seg2);
+          result2->prev=result1;
           result2->score=cumulative_distance;
           result2->sortby=cumulative_distance;
 
-          if(nodesx->super[node2]<=iteration)
+          /* don't route beyond a super-node. */
+          if(!IsBitSet(nodesx->super,node2))
              InsertInQueue(queue,result2);
          }
        else if(cumulative_distance<result2->score)
          {
-          result2->prev=node1;
+          result2->prev=result1;
           result2->score=cumulative_distance;
           result2->sortby=cumulative_distance;
 
-          if(nodesx->super[node2]<=iteration)
+          /* don't route beyond a super-node. */
+          if(!IsBitSet(nodesx->super,node2))
              InsertInQueue(queue,result2);
          }
 
       endloop:
 
-       index=IndexNextSegmentX(segmentsx,index,node1);
+       segmentx=NextSegmentX(segmentsx,segmentx,node1,2);
       }
    }
 

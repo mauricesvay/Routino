@@ -1,10 +1,8 @@
-# $Header: /home/amb/routino/xml/RCS/Makefile,v 1.8 2010/09/05 18:27:17 amb Exp $
-#
 # XML directory Makefile
 #
 # Part of the Routino routing software.
 #
-# This file Copyright 2010 Andrew M. Bishop
+# This file Copyright 2010-2011 Andrew M. Bishop
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -22,33 +20,67 @@
 
 # Web file paths
 
-WEBDIR=../web/data
+WEBDATADIR=../web/data
+WEBWWWDIR=../web/www/routino
 
 # Files to install
 
-FILES=profiles.xml \
-      translations.xml \
-      tagging.xml
+STANDARD_FILES=profiles.xml \
+               translations.xml \
+               tagging.xml
+
+SPECIAL_FILES=tagging-drive.xml \
+	      tagging-ride.xml \
+              tagging-walk.xml
 
 ########
 
-all :
-	-@[ -d $(WEBDIR) ] && \
-	  for file in $(FILES); do \
-	     if [ ! -f $(WEBDIR)/$$file ] || [ routino-$$file -nt $(WEBDIR)/$$file ]; then \
-	        echo cp routino-$$file $(WEBDIR)/$$file ;\
-	        cp -f routino-$$file $(WEBDIR)/$$file ;\
+all: $(SPECIAL_FILES)
+	-@for file in $(STANDARD_FILES); do \
+	     if [ ! -f $(WEBDATADIR)/$$file ] || [ routino-$$file -nt $(WEBDATADIR)/$$file ]; then \
+	        echo cp routino-$$file $(WEBDATADIR)/$$file ;\
+	        cp -f routino-$$file $(WEBDATADIR)/$$file ;\
 	     fi ;\
 	  done
+	-@for file in $(SPECIAL_FILES); do \
+	     if [ ! -f $(WEBDATADIR)/$$file ] || [ $$file -nt $(WEBDATADIR)/$$file ]; then \
+	        echo cp $$file $(WEBDATADIR)/$$file ;\
+	        cp -f $$file $(WEBDATADIR)/$$file ;\
+	     fi ;\
+	  done
+	-@if [ ! -f $(WEBWWWDIR)/profiles.js ] || [ ! -f $(WEBWWWDIR)/profiles.pl ] || \
+	     [ $(WEBDATADIR)/profiles.xml -nt $(WEBWWWDIR)/profiles.pl ] || \
+	     [ $(WEBDATADIR)/profiles.xml -nt $(WEBWWWDIR)/profiles.js ]; then \
+	     echo perl update-profiles.pl ;\
+	     ( cd $(WEBWWWDIR) ; perl update-profiles.pl ) ;\
+	  fi
+
+####
+
+tagging-drive.xml : routino-tagging.xml scripts/drive.pl
+	perl scripts/drive.pl < routino-tagging.xml > tagging-drive.xml
+
+tagging-ride.xml : routino-tagging.xml scripts/ride.pl
+	perl scripts/ride.pl < routino-tagging.xml > tagging-ride.xml
+
+tagging-walk.xml : routino-tagging.xml scripts/walk.pl
+	perl scripts/walk.pl < routino-tagging.xml > tagging-walk.xml
+
+########
+
+test:
 
 ########
 
 install: all
 	-[ -d $(DESTDIR)$(datadir) ] || mkdir -p $(DESTDIR)$(datadir)
-	@[ -d $(DESTDIR)$(datadir) ] && \
-	  for file in $(FILES); do \
+	-@for file in $(STANDARD_FILES) ; do \
 	     echo cp routino-$$file $(DESTDIR)$(datadir)/$$file ;\
 	     cp -f routino-$$file $(DESTDIR)$(datadir)/$$file ;\
+	  done
+	-@for file in $(SPECIAL_FILES); do \
+	     echo cp $$file $(DESTDIR)$(datadir)/$$file ;\
+	     cp -f $$file $(DESTDIR)$(datadir)/$$file ;\
 	  done
 
 ########
@@ -59,7 +91,8 @@ clean:
 ########
 
 distclean: clean
-	rm -f $(WEBDIR)/*.xml
+	rm -f $(WEBDATADIR)/*.xml
+	rm -f $(SPECIAL_FILES)
 
 ########
 

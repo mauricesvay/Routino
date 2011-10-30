@@ -116,7 +116,7 @@ Configuration of web files
    The directory 'www/openlayers' must be filled with the openlayers
    Javascript library that can be downloaded from
    http://www.openlayers.org/.  (This version of Routino has been tested
-   with OpenLayers library version 2.9.1). The files must be installed so
+   with OpenLayers library version 2.10). The files must be installed so
    that the file 'www/openlayers/OpenLayers.js' and the directories
    'www/openlayers/img/', 'www/openlayers/theme/' all exist. There is a
    script in the directory that will automatically download and the files,

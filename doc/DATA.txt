@@ -18,9 +18,9 @@ OpenStreetMap Data
 
    Way
           A way is a collection of nodes that when joined together define
-          something (for example a road, a ralway, a boundary, a building,
-          a lake etc). The ways also have attributes that define them
-          (speed limits, type of road and restrictions for example).
+          something (for example a road, a railway, a boundary, a
+          building, a lake etc). The ways also have attributes that define
+          them (speed limits, type of road and restrictions for example).
 
    Relation
           A relation is a collection of items (usually ways) that are
@@ -61,7 +61,8 @@ Router Data
           the previous step and for each way the useful information for
           routing is stored. For the router the useful information is the
           type of highway, the speed limit, the allowed types of transport
-          and other restrictions (one-way, min height, max weight etc).
+          and other restrictions (one-way, minimum height, maximum weight
+          etc).
 
    Connections between highways
           The connections between highways are defined in the
@@ -107,7 +108,7 @@ Problems With OpenStreetMap Data
    don't because they do not share nodes.
 
    A lot of these problems can be found using the interactive data
-   visualiser that uses the same Routino rouing database.
+   visualiser that uses the same Routino routing database.
 
 
 --------

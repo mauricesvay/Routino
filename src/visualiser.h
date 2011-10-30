@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/visualiser.h,v 1.2 2009/07/09 17:31:56 amb Exp $
-
  Header file for visualiser functions.
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2008,2009 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -28,21 +26,22 @@
 #include "types.h"
 
 
-/* In visualiser.c */
+/* Functions in visualiser.c */
 
-void OutputJunctions(Nodes *nodes,Segments *segments,Ways *ways,double latmin,double latmax,double lonmin,double lonmax);
+void OutputJunctions(Nodes *nodes,Segments *segments,Ways *ways,Relations *relations,double latmin,double latmax,double lonmin,double lonmax);
 
-void OutputSuper(Nodes *nodes,Segments *segments,Ways *ways,double latmin,double latmax,double lonmin,double lonmax);
+void OutputSuper(Nodes *nodes,Segments *segments,Ways *ways,Relations *relations,double latmin,double latmax,double lonmin,double lonmax);
 
-void OutputOneway(Nodes *nodes,Segments *segments,Ways *ways,double latmin,double latmax,double lonmin,double lonmax);
+void OutputOneway(Nodes *nodes,Segments *segments,Ways *ways,Relations *relations,double latmin,double latmax,double lonmin,double lonmax);
+void OutputTurnRestrictions(Nodes *nodes,Segments *segments,Ways *ways,Relations *relations,double latmin,double latmax,double lonmin,double lonmax);
 
-void OutputSpeedLimits(Nodes *nodes,Segments *segments,Ways *ways,double latmin,double latmax,double lonmin,double lonmax);
+void OutputSpeedLimits(Nodes *nodes,Segments *segments,Ways *ways,Relations *relations,double latmin,double latmax,double lonmin,double lonmax);
 
-void OutputWeightLimits(Nodes *nodes,Segments *segments,Ways *ways,double latmin,double latmax,double lonmin,double lonmax);
+void OutputWeightLimits(Nodes *nodes,Segments *segments,Ways *ways,Relations *relations,double latmin,double latmax,double lonmin,double lonmax);
 
-void OutputHeightLimits(Nodes *nodes,Segments *segments,Ways *ways,double latmin,double latmax,double lonmin,double lonmax);
-void OutputWidthLimits(Nodes *nodes,Segments *segments,Ways *ways,double latmin,double latmax,double lonmin,double lonmax);
-void OutputLengthLimits(Nodes *nodes,Segments *segments,Ways *ways,double latmin,double latmax,double lonmin,double lonmax);
+void OutputHeightLimits(Nodes *nodes,Segments *segments,Ways *ways,Relations *relations,double latmin,double latmax,double lonmin,double lonmax);
+void OutputWidthLimits(Nodes *nodes,Segments *segments,Ways *ways,Relations *relations,double latmin,double latmax,double lonmin,double lonmax);
+void OutputLengthLimits(Nodes *nodes,Segments *segments,Ways *ways,Relations *relations,double latmin,double latmax,double lonmin,double lonmax);
 
 
 #endif /* VISUALISER_H */

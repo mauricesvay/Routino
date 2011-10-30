@@ -1,5 +1,5 @@
 /***************************************
- $Header: /home/amb/routino/src/xml/RCS/xsd-to-xmlparser.c,v 1.10 2010/04/23 18:41:20 amb Exp $
+ $Header: /home/amb/CVS/routino/src/xml/xsd-to-xmlparser.c,v 1.10 2010-04-23 18:41:20 amb Exp $
 
  An XML parser for simplified XML Schema Definitions to create XML parser skeletons.
 

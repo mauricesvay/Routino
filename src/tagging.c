@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/tagging.c,v 1.5 2010/09/17 17:40:41 amb Exp $
-
  Load the tagging rules from a file and the functions for handling them.
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2010 Andrew M. Bishop
+ This file Copyright 2010-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -29,6 +27,8 @@
 #include "files.h"
 #include "tagging.h"
 #include "xmlparse.h"
+#include "logging.h"
+#include "typesx.h"
 
 
 /* Global variables */
@@ -46,18 +46,20 @@ TaggingRule     *current_rule=NULL;
 
 /* Local functions */
 
-static void apply_actions(TaggingRule *rule,int match,TagList *input,TagList *output);
+static void apply_actions(TaggingRuleList *rules,TaggingRule *rule,int match,TagList *input,TagList *output,node_t id);
 
 
 /* The XML tag processing function prototypes */
 
 //static int xmlDeclaration_function(const char *_tag_,int _type_,const char *version,const char *encoding);
 //static int RoutinoTaggingType_function(const char *_tag_,int _type_);
+static int RelationType_function(const char *_tag_,int _type_);
 static int WayType_function(const char *_tag_,int _type_);
 static int NodeType_function(const char *_tag_,int _type_);
-static int RelationType_function(const char *_tag_,int _type_);
 static int IfType_function(const char *_tag_,int _type_,const char *k,const char *v);
+static int LogErrorType_function(const char *_tag_,int _type_,const char *k,const char *v);
 static int OutputType_function(const char *_tag_,int _type_,const char *k,const char *v);
+static int UnsetType_function(const char *_tag_,int _type_,const char *k);
 static int SetType_function(const char *_tag_,int _type_,const char *k,const char *v);
 
 
@@ -70,6 +72,13 @@ static xmltag SetType_tag=
                SetType_function,
                {NULL}};
 
+/*+ The UnsetType type tag. +*/
+static xmltag UnsetType_tag=
+              {"unset",
+               1, {"k"},
+               UnsetType_function,
+               {NULL}};
+
 /*+ The OutputType type tag. +*/
 static xmltag OutputType_tag=
               {"output",
@@ -77,19 +86,19 @@ static xmltag OutputType_tag=
                OutputType_function,
                {NULL}};
 
+/*+ The LogErrorType type tag. +*/
+static xmltag LogErrorType_tag=
+              {"logerror",
+               2, {"k","v"},
+               LogErrorType_function,
+               {NULL}};
+
 /*+ The IfType type tag. +*/
 static xmltag IfType_tag=
               {"if",
                2, {"k","v"},
                IfType_function,
-               {&SetType_tag,&OutputType_tag,NULL}};
-
-/*+ The RelationType type tag. +*/
-static xmltag RelationType_tag=
-              {"relation",
-               0, {NULL},
-               RelationType_function,
-               {&IfType_tag,NULL}};
+               {&SetType_tag,&UnsetType_tag,&OutputType_tag,&LogErrorType_tag,NULL}};
 
 /*+ The NodeType type tag. +*/
 static xmltag NodeType_tag=
@@ -103,6 +112,13 @@ static xmltag WayType_tag=
               {"way",
                0, {NULL},
                WayType_function,
+               {&IfType_tag,NULL}};
+
+/*+ The RelationType type tag. +*/
+static xmltag RelationType_tag=
+              {"relation",
+               0, {NULL},
+               RelationType_function,
                {&IfType_tag,NULL}};
 
 /*+ The RoutinoTaggingType type tag. +*/
@@ -144,7 +160,28 @@ static xmltag *xml_toplevel_tags[]={&xmlDeclaration_tag,&RoutinoTaggingType_tag,
 static int SetType_function(const char *_tag_,int _type_,const char *k,const char *v)
 {
  if(_type_&XMLPARSE_TAG_START)
-    AppendTaggingAction(current_rule,k,v,0);
+    AppendTaggingAction(current_rule,k,v,TAGACTION_SET);
+
+ return(0);
+}
+
+
+/*++++++++++++++++++++++++++++++++++++++
+  The function that is called when the UnsetType XSD type is seen
+
+  int UnsetType_function Returns 0 if no error occured or something else otherwise.
+
+  const char *_tag_ Set to the name of the element tag that triggered this function call.
+
+  int _type_ Set to XMLPARSE_TAG_START at the start of a tag and/or XMLPARSE_TAG_END at the end of a tag.
+
+  const char *k The contents of the 'k' attribute (or NULL if not defined).
+  ++++++++++++++++++++++++++++++++++++++*/
+
+static int UnsetType_function(const char *_tag_,int _type_,const char *k)
+{
+ if(_type_&XMLPARSE_TAG_START)
+    AppendTaggingAction(current_rule,k,NULL,TAGACTION_UNSET);
 
  return(0);
 }
@@ -167,7 +204,30 @@ static int SetType_function(const char *_tag_,int _type_,const char *k,const cha
 static int OutputType_function(const char *_tag_,int _type_,const char *k,const char *v)
 {
  if(_type_&XMLPARSE_TAG_START)
-    AppendTaggingAction(current_rule,k,v,1);
+    AppendTaggingAction(current_rule,k,v,TAGACTION_OUTPUT);
+
+ return(0);
+}
+
+
+/*++++++++++++++++++++++++++++++++++++++
+  The function that is called when the LogErrorType XSD type is seen
+
+  int LogErrorType_function Returns 0 if no error occured or something else otherwise.
+
+  const char *_tag_ Set to the name of the element tag that triggered this function call.
+
+  int _type_ Set to XMLPARSE_TAG_START at the start of a tag and/or XMLPARSE_TAG_END at the end of a tag.
+
+  const char *k The contents of the 'k' attribute (or NULL if not defined).
+
+  const char *v The contents of the 'v' attribute (or NULL if not defined).
+  ++++++++++++++++++++++++++++++++++++++*/
+
+static int LogErrorType_function(const char *_tag_,int _type_,const char *k,const char *v)
+{
+ if(_type_&XMLPARSE_TAG_START)
+    AppendTaggingAction(current_rule,k,v,TAGACTION_LOGERROR);
 
  return(0);
 }
@@ -193,25 +253,6 @@ static int IfType_function(const char *_tag_,int _type_,const char *k,const char
    {
     current_rule=AppendTaggingRule(current_list,k,v);
    }
-
- return(0);
-}
-
-
-/*++++++++++++++++++++++++++++++++++++++
-  The function that is called when the RelationType XSD type is seen
-
-  int RelationType_function Returns 0 if no error occured or something else otherwise.
-
-  const char *_tag_ Set to the name of the element tag that triggered this function call.
-
-  int _type_ Set to XMLPARSE_TAG_START at the start of a tag and/or XMLPARSE_TAG_END at the end of a tag.
-  ++++++++++++++++++++++++++++++++++++++*/
-
-static int RelationType_function(const char *_tag_,int _type_)
-{
- if(_type_&XMLPARSE_TAG_START)
-    current_list=&RelationRules;
 
  return(0);
 }
@@ -250,6 +291,25 @@ static int WayType_function(const char *_tag_,int _type_)
 {
  if(_type_&XMLPARSE_TAG_START)
     current_list=&WayRules;
+
+ return(0);
+}
+
+
+/*++++++++++++++++++++++++++++++++++++++
+  The function that is called when the RelationType XSD type is seen
+
+  int RelationType_function Returns 0 if no error occured or something else otherwise.
+
+  const char *_tag_ Set to the name of the element tag that triggered this function call.
+
+  int _type_ Set to XMLPARSE_TAG_START at the start of a tag and/or XMLPARSE_TAG_END at the end of a tag.
+  ++++++++++++++++++++++++++++++++++++++*/
+
+static int RelationType_function(const char *_tag_,int _type_)
+{
+ if(_type_&XMLPARSE_TAG_START)
+    current_list=&RelationRules;
 
  return(0);
 }
@@ -301,6 +361,7 @@ static int WayType_function(const char *_tag_,int _type_)
 
 int ParseXMLTaggingRules(const char *filename)
 {
+ FILE *file;
  int retval;
 
  if(!ExistsFile(filename))
@@ -309,7 +370,7 @@ int ParseXMLTaggingRules(const char *filename)
     return(1);
    }
 
- FILE *file=fopen(filename,"r");
+ file=fopen(filename,"r");
 
  if(!file)
    {
@@ -325,6 +386,18 @@ int ParseXMLTaggingRules(const char *filename)
     return(1);
 
  return(0);
+}
+
+
+/*++++++++++++++++++++++++++++++++++++++
+  Delete the tagging rules loaded from the XML file.
+  ++++++++++++++++++++++++++++++++++++++*/
+
+void DeleteXMLTaggingRules(void)
+{
+ DeleteTaggingRuleList(&NodeRules);
+ DeleteTaggingRuleList(&WayRules);
+ DeleteTaggingRuleList(&RelationRules);
 }
 
 
@@ -373,17 +446,17 @@ TaggingRule *AppendTaggingRule(TaggingRuleList *rules,const char *k,const char *
 
   const char *v The tag value.
 
-  int output Set to 1 if this is an output rule.
+  int action Set to the type of action.
   ++++++++++++++++++++++++++++++++++++++*/
 
-void AppendTaggingAction(TaggingRule *rule,const char *k,const char *v,int output)
+void AppendTaggingAction(TaggingRule *rule,const char *k,const char *v,int action)
 {
  if((rule->nactions%16)==0)
     rule->actions=(TaggingAction*)realloc((void*)rule->actions,(rule->nactions+16)*sizeof(TaggingAction));
 
  rule->nactions++;
 
- rule->actions[rule->nactions-1].output=output;
+ rule->actions[rule->nactions-1].action=action;
 
  if(k)
     rule->actions[rule->nactions-1].k=strcpy(malloc(strlen(k)+1),k);
@@ -398,6 +471,40 @@ void AppendTaggingAction(TaggingRule *rule,const char *k,const char *v,int outpu
 
 
 /*++++++++++++++++++++++++++++++++++++++
+  Delete a tagging rule.
+
+  TaggingRuleList *rules The list of rules to be deleted.
+  ++++++++++++++++++++++++++++++++++++++*/
+
+void DeleteTaggingRuleList(TaggingRuleList *rules)
+{
+ int i,j;
+
+ for(i=0;i<rules->nrules;i++)
+   {
+    if(rules->rules[i].k)
+       free(rules->rules[i].k);
+    if(rules->rules[i].v)
+       free(rules->rules[i].v);
+
+    for(j=0;j<rules->rules[i].nactions;j++)
+      {
+       if(rules->rules[i].actions[j].k)
+          free(rules->rules[i].actions[j].k);
+       if(rules->rules[i].actions[j].v)
+          free(rules->rules[i].actions[j].v);
+      }
+
+    if(rules->rules[i].actions)
+       free(rules->rules[i].actions);
+   }
+
+ if(rules->rules)
+    free(rules->rules);
+}
+
+
+/*++++++++++++++++++++++++++++++++++++++
   Create a new TagList structure.
 
   TagList *NewTagList Returns the new allocated TagList.
@@ -406,6 +513,32 @@ void AppendTaggingAction(TaggingRule *rule,const char *k,const char *v,int outpu
 TagList *NewTagList(void)
 {
  return((TagList*)calloc(sizeof(TagList),1));
+}
+
+
+/*++++++++++++++++++++++++++++++++++++++
+  Delete a tag list and the contents.
+
+  TagList *tags The list of tags to delete.
+  ++++++++++++++++++++++++++++++++++++++*/
+
+void DeleteTagList(TagList *tags)
+{
+ int i;
+
+ for(i=0;i<tags->ntags;i++)
+   {
+    if(tags->k[i]) free(tags->k[i]);
+    if(tags->v[i]) free(tags->v[i]);
+   }
+
+ if(tags->ntags)
+   {
+    free(tags->k);
+    free(tags->v);
+   }
+
+ free(tags);
 }
 
 
@@ -465,28 +598,36 @@ void ModifyTag(TagList *tags,const char *k,const char *v)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Delete a tag list and the contents.
+  Delete an existing tag from the list of tags.
 
-  TagList *tags The list of tags to delete.
+  TagList *tags The list of tags to modify.
+
+  const char *k The tag key.
   ++++++++++++++++++++++++++++++++++++++*/
 
-void DeleteTagList(TagList *tags)
+void DeleteTag(TagList *tags,const char *k)
 {
- int i;
+ int i,j;
 
  for(i=0;i<tags->ntags;i++)
-   {
-    if(tags->k[i]) free(tags->k[i]);
-    if(tags->v[i]) free(tags->v[i]);
-   }
+    if(!strcmp(tags->k[i],k))
+      {
+       if(tags->k[i]) free(tags->k[i]);
+       if(tags->v[i]) free(tags->v[i]);
 
- if(tags->ntags)
-   {
-    free(tags->k);
-    free(tags->v);
-   }
+       for(j=i+1;j<tags->ntags;j++)
+         {
+          tags->k[j-1]=tags->k[j];
+          tags->v[j-1]=tags->v[j];
+         }
 
- free(tags);
+       tags->ntags--;
+
+       tags->k[tags->ntags]=NULL;
+       tags->v[tags->ntags]=NULL;
+
+       return;
+      }
 }
 
 
@@ -498,9 +639,11 @@ void DeleteTagList(TagList *tags)
   TaggingRuleList *rules The tagging rules to apply.
 
   TagList *tags The tags to be modified.
+
+  node_t id The ID of the node, way or relation.
   ++++++++++++++++++++++++++++++++++++++*/
 
-TagList *ApplyTaggingRules(TaggingRuleList *rules,TagList *tags)
+TagList *ApplyTaggingRules(TaggingRuleList *rules,TagList *tags,node_t id)
 {
  TagList *result=NewTagList();
  int i,j;
@@ -511,24 +654,24 @@ TagList *ApplyTaggingRules(TaggingRuleList *rules,TagList *tags)
       {
        for(j=0;j<tags->ntags;j++)
           if(!strcmp(tags->k[j],rules->rules[i].k) && !strcmp(tags->v[j],rules->rules[i].v))
-             apply_actions(&rules->rules[i],j,tags,result);
+             apply_actions(rules,&rules->rules[i],j,tags,result,id);
       }
     else if(rules->rules[i].k && !rules->rules[i].v)
       {
        for(j=0;j<tags->ntags;j++)
           if(!strcmp(tags->k[j],rules->rules[i].k))
-             apply_actions(&rules->rules[i],j,tags,result);
+             apply_actions(rules,&rules->rules[i],j,tags,result,id);
       }
     else if(!rules->rules[i].k && rules->rules[i].v)
       {
        for(j=0;j<tags->ntags;j++)
           if(!strcmp(tags->v[j],rules->rules[i].v))
-             apply_actions(&rules->rules[i],j,tags,result);
+             apply_actions(rules,&rules->rules[i],j,tags,result,id);
       }
     else /* if(!rules->rules[i].k && !rules->rules[i].v) */
       {
        for(j=0;j<tags->ntags;j++)
-          apply_actions(&rules->rules[i],j,tags,result);
+          apply_actions(rules,&rules->rules[i],j,tags,result,id);
       }
    }
 
@@ -539,6 +682,8 @@ TagList *ApplyTaggingRules(TaggingRuleList *rules,TagList *tags)
 /*++++++++++++++++++++++++++++++++++++++
   Apply a set of actions to a matching tag.
 
+  TaggingRuleList *rules The tagging rules to apply.
+
   TaggingRule *rule The rule that matched (containing the actions).
 
   int match The matching tag number.
@@ -546,9 +691,11 @@ TagList *ApplyTaggingRules(TaggingRuleList *rules,TagList *tags)
   TagList *input The input tags.
 
   TagList *output The output tags.
+
+  node_t id The ID of the node, way or relation.
   ++++++++++++++++++++++++++++++++++++++*/
 
-static void apply_actions(TaggingRule *rule,int match,TagList *input,TagList *output)
+static void apply_actions(TaggingRuleList *rules,TaggingRule *rule,int match,TagList *input,TagList *output,node_t id)
 {
  int i;
  
@@ -566,9 +713,20 @@ static void apply_actions(TaggingRule *rule,int match,TagList *input,TagList *ou
     else
        v=input->v[match];
 
-    if(rule->actions[i].output)
-       ModifyTag(output,k,v);
-    else
+    if(rule->actions[i].action==TAGACTION_SET)
        ModifyTag(input,k,v);
+    if(rule->actions[i].action==TAGACTION_UNSET)
+       DeleteTag(input,k);
+    if(rule->actions[i].action==TAGACTION_OUTPUT)
+       ModifyTag(output,k,v);
+    if(rule->actions[i].action==TAGACTION_LOGERROR)
+      {
+       if(rules==&NodeRules)
+          logerror("Node %"Pnode_t" has an unrecognised tag value '%s' = '%s' (in tagging rules).\n",id,k,v);
+       if(rules==&WayRules)
+          logerror("Way %"Pway_t" has an unrecognised tag value '%s' = '%s' (in tagging rules).\n",id,k,v);
+       if(rules==&RelationRules)
+          logerror("Relation %"Prelation_t" has an unrecognised tag value '%s' = '%s' (in tagging rules).\n",id,k,v);
+      }
    }
 }

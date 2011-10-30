@@ -6,7 +6,7 @@
 
  Part of the Routino routing software.
 
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -66,7 +66,7 @@ bicycle, horse, motorcar, motorbike etc).
 When processing the OpenStreetMap data the types of highways are recorded and
 these set default limits on the types of traffic allowed.  More specific
 information about permissions for different types of transport are also recorded
-as are maximum speed limits.  Further restrictions like oneway streets, weight,
+as are maximum speed limits.  Further restrictions like one-way streets, weight,
 height, width and length limits are also included where specified. Additionally
 a set of properties of each highway are also recorded.  The processing of the
 input file is controlled by a configuration file which determines the
@@ -81,7 +81,9 @@ For each type of highway a default speed limit is defined (although the actual
 speed used will be the lowest of the default and any specified in the original
 data).  To make use of the information about restrictions the weight, height,
 width and length of the transport can also be specified.  Further preferences
-about road properties (e.g. paved or not) can also be selected.
+about road properties (e.g. paved or not) can also be selected.  The simplest
+type of turn restrictions (those formed from an initial way, a node and a second
+way) are also obeyed.
 
 <p>
 
@@ -158,76 +160,38 @@ Version 1.4.1 of Routino was released on 10th July 2010.
 Version 1.5 of Routino was released on 30th October 2010.
 <br>
 Version 1.5.1 of Routino was released on 13th November 2010.
+<br>
+Version 2.0 of Routino was released on 30th May 2011.
+<br>
+Version 2.0.1 of Routino was released on 7th June 2011.
+<br>
+Version 2.0.2 of Routino was released on 26th June 2011.
+<br>
+Version 2.0.3 of Routino was released on 4th August 2011.
+<br>
+Version 2.1 of Routino was released on 3rd October 2011.
+<br>
+Version 2.1.1 of Routino was released on 23rd October 2011.
 
 <p>
 
 The full version history is available in the NEWS file.
 
 
-<h3><a name="H_1_5_1" title="Changes"></a>Changes in Version 1.5</h3>
+<h3><a name="H_1_5_1" title="Changes"></a>Changes in Version 2.1.1</h3>
 
 <dl>
   <dt>Bug fixes:
-  <dd>Check that number of nodes/segments/ways doesn't exceed numerical limits.
-  <br>Allow 32-bit systems to seek within files larger than 4GB.
-  <br>Allow nearly 4G nodes to be stored instead of 2G before.
-  <br>Added rules to makefile for installation (paths specified in top-level).
-  <br>Stricter checking of UTF-8 in XML files and better UTF-8 output.
-  <br>Improve error message if parsing of command line options fail.
-  <br>Fix bugs in router's --help-profile-json and --help-profile-perl options.
-  <br>Rename heapsort function to allow compilation on Mac OS with no change.
-  <br>Reduce impact of property preferences close to 50% by using sqrt().
-
-  <dt>Documentation:
-  <dd>Update documentation to reflect changes in program usage and function.
-
-  <dt>OSM tagging
-  <dd>Traffic restrictions on nodes are now included in default tagging file.
-  <br>Added processing for ferry routes (as pseudo-highway type 'ferry').
-  <br>Process foot and bicycle route relations to create new properties.
-
-  <dt>Configuration Files:
-  <dd>Added Dutch output translations.
-  <br>Added ferry information to profiles.
-  <br>Added foot and bicycle route relation processing.
-
-  <dt>planetsplitter
-  <dd>The slim mode now includes the output data as well as the temporary data.
-  <br>The slim mode is now a separate executable and not a command line option.
-  <br>Traffic restrictions on nodes are now understood when parsing OSM files.
-  <br>Falls back to installed tagging.xml configuration file as last resort.
-
-  <dt>router:
-  <dd>Added a slim mode (as a separate executable and not a command line option).
-  <br>Traffic will not be routed through a node that does not allow it.
-  <br>Falls back to installed profiles.xml & translations.xml files as last resort.
-
-  <dt>filedumper:
-  <dd>Added a slim mode (as a separate executable and not a command line option).
-
-  <dt>Web pages:
-  <dd>Added Dutch translation of router.html.
-</dl>
-
-<h3><a name="H_1_5_2"></a>Additional Changes in Version 1.5.1</h3>
-
-<dl>
-  <dt>Bug fixes:
-  <dd>Ensure that enough memory is allocated for filenames.
-  <br>Fix bug that sometimes causes crash when processing route relations.
-
-  <dt>Documentation:
-  <dd>Update documentation to reflect changes in program usage and function.
-
-  <dt>Programs:
-  <dd>Add an option to make the output more suitable for a log file.
-
-  <dt>Documentation:
-  <dd>Update documentation to reflect changes in program usage.
+  <dd>Speed up the routing by a factor of 5 by improving data handling functions.
+  <br>Speed up database generation by reducing the default number of iterations.
+  <br>Fix the handling of the 'except' tag on turn restrictions.
+  <br>Fix the 'make install' option for the XML files.
+  <br>Add some more typecasts when printing data from filedumper program.
+  <br>Make the CGI script more robust if shortest/fastest is not passed in.
 </dl>
 
 
-<h3><a name="H_1_5_3"></a>License</h3>
+<h3><a name="H_1_5_2"></a>License</h3>
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the
@@ -243,9 +207,9 @@ additional requirements to anybody who provides a networked service using this
 software.
 
 
-<h3><a name="H_1_5_4"></a>Copyright</h3>
+<h3><a name="H_1_5_3"></a>Copyright</h3>
 
-Routino is copyright Andrew M. Bishop 2008-2010.
+Routino is copyright Andrew M. Bishop 2008-2011.
 
 
 <h2><a name="H_1_6"></a>Download</h2>

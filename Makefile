@@ -1,10 +1,8 @@
-# $Header: /home/amb/routino/RCS/Makefile,v 1.5 2010/09/05 18:26:57 amb Exp $
-#
-# Makefile
+# Top level Makefile
 #
 # Part of the Routino routing software.
 #
-# This file Copyright 2009-2010 Andrew M. Bishop
+# This file Copyright 2009-2011 Andrew M. Bishop
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -41,6 +39,13 @@ all$(top):
 
 ########
 
+test$(top): .FORCE
+	for dir in $(TOPDIRS); do \
+	   ( cd $$dir && $(MAKE) $@ ); \
+	done
+
+########
+
 install$(top): all$(top)
 	for dir in $(TOPDIRS); do \
 	   ( cd $$dir && $(MAKE) $@ ); \
@@ -60,3 +65,7 @@ distclean$(top): clean$(top)
 	for dir in $(TOPDIRS); do \
 	   ( cd $$dir && $(MAKE) $@ ); \
 	done
+
+########
+
+.FORCE:

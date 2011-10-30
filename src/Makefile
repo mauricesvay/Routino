@@ -1,10 +1,8 @@
-# $Header: /home/amb/routino/src/RCS/Makefile,v 1.43 2010/11/13 14:22:28 amb Exp $
-#
 # Source code Makefile
 #
 # Part of the Routino routing software.
 #
-# This file Copyright 2008-2010 Andrew M. Bishop
+# This file Copyright 2008-2011 Andrew M. Bishop
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -33,18 +31,18 @@ LEX=flex
 
 # Compilation program options
 
-CFLAGS=-Wall -Wmissing-prototypes
-#CFLAGS+= -Wextra -pedantic -std=c99
+CFLAGS=-Wall -Wmissing-prototypes -std=c99
+#CFLAGS+= -Wextra -pedantic
 LDFLAGS=-lm -lc
 
 CFLAGS+= -O3
 #CFLAGS+= -O0 -g
 #CFLAGS+= -pg
-#CFLAGS+= --coverage
+#CFLAGS+= -fprofile-arcs -ftest-coverage
 
 LDFLAGS+=
 #LDFLAGS+= -pg -static
-#LDFLAGS+= --coverage
+#LDFLAGS+= -fprofile-arcs -ftest-coverage
 
 LEXFLAGS=
 
@@ -61,7 +59,7 @@ EXE=planetsplitter planetsplitter-slim router router-slim filedumper filedumper-
 
 ########
 
-all : $(EXE)
+all: $(EXE)
 	-@[ -d $(WEBDIR) ] && \
 	  for file in $(EXE); do \
 	     if [ ! -f $(WEBDIR)/$$file ] || [ $$file -nt $(WEBDIR)/$$file ]; then \
@@ -69,7 +67,8 @@ all : $(EXE)
 	        cp -f $$file $(WEBDIR) ;\
 	     fi ;\
 	  done
-	@cd xml && $(MAKE) CC="$(CC)" LD="$(LD)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
+	@cd xml  && $(MAKE) CC="$(CC)" LD="$(LD)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
+	@cd test && $(MAKE) CC="$(CC)" LD="$(LD)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)"
 
 ########
 
@@ -98,7 +97,7 @@ planetsplitter-slim : $(PLANETSPLITTER_SLIM_OBJ)
 ########
 
 ROUTER_OBJ=router.o \
-	   nodes.o segments.o ways.o types.o fakes.o \
+	   nodes.o segments.o ways.o relations.o types.o fakes.o \
 	   optimiser.o output.o \
 	   files.o logging.o profiles.o xmlparse.o \
 	   results.o queue.o translations.o
@@ -109,7 +108,7 @@ router : $(ROUTER_OBJ)
 ########
 
 ROUTER_SLIM_OBJ=router-slim.o \
-	        nodes-slim.o segments-slim.o ways-slim.o types.o fakes.o \
+	        nodes-slim.o segments-slim.o ways-slim.o relations-slim.o types.o fakes-slim.o \
 	        optimiser-slim.o output-slim.o \
 	        files.o logging.o profiles.o xmlparse.o \
 	        results.o queue.o translations.o
@@ -120,7 +119,7 @@ router-slim : $(ROUTER_SLIM_OBJ)
 ########
 
 FILEDUMPER_OBJ=filedumper.o \
-	       nodes.o segments.o ways.o types.o \
+	       nodes.o segments.o ways.o relations.o types.o fakes.o \
                visualiser.o \
 	       files.o logging.o xmlparse.o
 
@@ -130,7 +129,7 @@ filedumper : $(FILEDUMPER_OBJ)
 ########
 
 FILEDUMPER_SLIM_OBJ=filedumper-slim.o \
-	       nodes-slim.o segments-slim.o ways-slim.o types.o \
+	       nodes-slim.o segments-slim.o ways-slim.o relations-slim.o types.o fakes-slim.o \
                visualiser-slim.o \
 	       files.o logging.o xmlparse.o
 
@@ -156,10 +155,16 @@ xmlparse.c : xmlparse.l
 ########
 
 %.o : %.c
-	$(CC) -c $(CFLAGS) $(FLAGS64) -DSLIM=0 -DDATADIR=\"$(datadir)\" $< -o $@ -MMD -MP -MF $(addprefix .deps/,$(addsuffix .d,$(basename $<)))
+	$(CC) -c $(CFLAGS) $(FLAGS64) -DSLIM=0 -DDATADIR=\"$(datadir)\" $< -o $@ -MMD -MP -MF $(addprefix .deps/,$(addsuffix .d,$(basename $@)))
 
 %-slim.o : %.c
-	$(CC) -c $(CFLAGS) $(FLAGS64) -DSLIM=1 -DDATADIR=\"$(datadir)\" $< -o $@ -MMD -MP -MF $(addprefix .deps/,$(addsuffix .d,$(basename $<)))
+	$(CC) -c $(CFLAGS) $(FLAGS64) -DSLIM=1 -DDATADIR=\"$(datadir)\" $< -o $@ -MMD -MP -MF $(addprefix .deps/,$(addsuffix .d,$(basename $@)))
+
+########
+
+test: .FORCE
+	cd xml  && $(MAKE) test
+	cd test && $(MAKE) test
 
 ########
 
@@ -176,8 +181,10 @@ install: all
 clean:
 	rm -f *.o
 	rm -f *~
+	rm -f *.gcda *.gcno *.gcov gmon.out
 	rm -f xmlparse.c
-	cd xml && $(MAKE) clean
+	cd xml  && $(MAKE) clean
+	cd test && $(MAKE) clean
 
 ########
 
@@ -186,11 +193,12 @@ distclean: clean
 	-rm -f $(EXE)
 	-rm -f $(D)
 	-rm -fr .deps
-	cd xml && $(MAKE) distclean
+	cd xml  && $(MAKE) distclean
+	cd test && $(MAKE) distclean
 
 ########
 
-.deps : .FORCE
+.deps: .FORCE
 	@[ -d .deps ] || mkdir $@
 
 $(D) : .deps
@@ -200,7 +208,7 @@ include $(D)
 
 ########
 
-.FORCE :
+.FORCE:
 
 ########
 

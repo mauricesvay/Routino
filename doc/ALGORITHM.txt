@@ -46,9 +46,9 @@ Improved Algorithm
    At all times when looking at a node only those segments that are
    possible by the chosen means of transport are followed. This allows the
    type of transport to be handled easily. When finding the quickest route
-   the same rules apply except that criterion for sorting is the shortest
-   potential route (assuming that from each node to the end is the fastest
-   possible type of highway).
+   the same rules apply except that the criterion for sorting is the
+   shortest potential route (assuming that from each node to the end is
+   the fastest possible type of highway).
 
    This method also works, but again it isn't very fast. The problem is
    that the complexity is proportional to the number of nodes or segments
@@ -65,13 +65,15 @@ Final Algorithm
    UK at beginning of 2010) it finds one long route in a data set of
    1,000,000 nodes and a few hundred very short routes in the full data
    set. Since the time taken to find a route is proportional to the number
-   of nodes the main route takes 1/10th of the time and the very short
-   routes take almost no time at all.
+   of nodes that need to be considered the main route takes 1/10th of the
+   time and the very short routes take almost no time at all.
 
    The solution to making the algorithm fast is therefore to discard most
    of the nodes and only keep the interesting ones. In this case a node is
-   deemed to be interesting if it is the junction of two segments with
-   different properties. In the algorithm these are classed as
+   deemed to be interesting if it is the junction of three or more
+   segments or the junction of two segments with different properties or
+   has a routing restriction different from the connecting segments. In
+   the algorithm and following description these are classed as
    super-nodes. Starting at each super-node a super-segment is generated
    that finishes on another super-node and contains the shortest path
    along segments with identical properties (and these properties are
@@ -102,7 +104,37 @@ Final Algorithm
    or finish on a super-node. In these cases one or more of the steps
    listed can be removed or simplified.
 
+   When the first route reaches the final node the length of that route is
+   retained as a benchmark. Any shorter complete route that is calculated
+   later would replace this benchmark. As routes are tested any partial
+   routes that are longer than the benchmark can be immediately discarded.
+   Other partial routes have the length of a perfect straight highway to
+   the final node added to them and if the total exceeds the benchmark
+   they can also be discarded. Very quickly the number of possible routes
+   is reduced until the absolute shortest is found.
+
+   For routes that do not start or finish on a node in the original data
+   set a fake node is added to an existing segment. This requires special
+   handling in the algorithm but it gives mode flexibility for the start,
+   finish and intermediate points in a route.
+
+
+Algorithm Evolution
+-------------------
+
+   In Routino versions 1.0 to 1.4 the algorithm used to select a
+   super-node was the same as above except that node properties were not
+   included. Routino versions 1.4.1 to 1.5.1 used a slightly different
+   algorithm which only chose nodes that were junctions between segments
+   with different properties (or has a routing restriction that is
+   different from connecting segments in versions 1.5 and 1.5.1). The
+   addition of turn restrictions (described in more detail below) requires
+   the original algorithm since the super-segments more accurately reflect
+   the underlying topology.
+
+
 Routing Preferences
+-------------------
 
    One of the important features of Routino is the ability to select a
    route that is optimum for a set of criteria such as preferences for
@@ -123,10 +155,10 @@ Routing Preferences
           own speed limit and the user's speed preference for the type of
           highway is the starting point for the score.
 
-   Oneway restriction
-          If a highway has the oneway property in the opposite direction
+   One-way restriction
+          If a highway has the one-way property in the opposite direction
           to the desired travel and the user's preference is to obey
-          oneway restrictions then the segment is ignored.
+          one-way restrictions then the segment is ignored.
 
    Weight, height, width & length limits
           If a highway has one of these limits and its value is less than
@@ -144,18 +176,83 @@ Routing Preferences
           percentage and each highway either has that property or not. The
           user's property preference is scaled into the range 0.0 (for 0%)
           to 1.0 (for 100%) to give a weighted preference, a second
-          "non-property" weighted preference is calcuated in the same way
+          "non-property" weighted preference is calculated in the same way
           after subtracting the user's preference from 100%. If a segment
           has a particular property then the calculated score is divided
-          by the weighted preference for that property, if the segment
-          does not have this property then it is divided by the
-          non-property weighted preference. To ensure that setting
-          property preferences near 50% do not cause large variations in
-          routes the highway's preference is found by taking the square
-          root of the property preference.
+          by the weighted preference for that property, if not then it is
+          divided by the non-property weighted preference. A non-linear
+          transformation is applied so that changing property preferences
+          close to 50% do not cause large variations in routes.
 
-Implementation
---------------
+Turn Restrictions
+-----------------
+
+   The addition of turn restrictions adds a set of further complications
+   because it introduces a set of constraints that are far more complex
+   than one-way streets.
+
+   A turn restriction in the simplest case is a combination of a segment,
+   node and segment such that routes are not allowed to go from the first
+   segment to the second one through the specified node. Exceptions for
+   certain types of traffic can also be specified. Currently only this
+   simplest type of turn restriction is handled by the algorithm.
+
+   The first complication of turn restrictions is that the algorithm above
+   requires that super-segments are composed of segments with identical
+   properties. A turn restriction is not the same in both directions so a
+   super-segment cannot include any route through that turn restriction.
+   The node at the centre of the turn restriction must therefore be a
+   super-node to avoid this. In addition to this all nodes connected to
+   the turn restriction node by a single segment must also be super-nodes
+   to avoid any long-distance super-segments starting at the restricted
+   node.
+
+   The second complication of a turn restriction is that the optimum route
+   may require passing through the same node more than once. This can
+   happen where the route needs to work around a turn restriction by
+   driving past it, turning round (on a roundabout perhaps) and coming
+   back along the same highway. Without turn restrictions a route could be
+   defined purely by the set of nodes that were passed; no node would
+   exist more than once along a route between two points. With turn
+   restrictions the route is defined by a node and the segment used to get
+   there; no route between two points will ever need to follow the same
+   segment in the same direction more than once.
+
+   A side-effect of this is that a route that works around a turn
+   restriction must be calculable using the super-segments that are stored
+   in the database. This puts a limit on the amount of database
+   optimisation that can be performed because if too many super-segments
+   are removed the optimum work-around may also be removed. The solution
+   to this is to ensure that the database preserves all loops that can be
+   used to turn around and reverse direction, previously super-segments
+   that started and finished on the same super-node were disallowed.
+
+   Another side-effect of having the route composed of a set of locations
+   (nodes) as well as the direction of travel (segments used to reach
+   them) is that via points in the route can be forced to continue in the
+   original direction. If the chosen method of transport obeys turn
+   restrictions then it will not reverse direction at a via point but will
+   find an optimum route continuing in the same direction. The only
+   exception to this is when the route ahead at a waypoint is into a
+   dead-end and an immediate U-turn is allowed.
+
+   A side-effect of having the starting direction at a via point defined
+   by the previous part of the route is that overall non-optimal routes
+   may be found even though each section between via points is optimal.
+   For a route with a start, middle and end point defined it can be the
+   case that the shortest route from the start to the middle arrives in
+   the opposite direction to that required for the optimal route from the
+   middle to the end. The calculation of the route in separate sections
+   therefore may give a non-optimum result even though each section is
+   itself optimum based on the start conditions.
+
+   Overall the presence of turn restrictions in the database makes the
+   routing slower even for regions of the map that have no turn
+   restrictions.
+
+
+Data Implementation
+-------------------
 
    The hardest part of implementing this router is the data organisation.
    The arrangement of the data to minimise the number of operations
@@ -190,6 +287,12 @@ Implementation
    increase the database size (by about 10%) and are also marked with a
    flag.
 
+   The relations are stored separately from the nodes, segments and ways.
+   For the turn restriction relations the initial and final segments are
+   stored along with the restricted node itself. Each node that has a turn
+   restriction is marked in the main node storage with a flag to indicate
+   this information.
+
 
 Practicalities
 --------------
@@ -213,4 +316,4 @@ Practicalities
 
 --------
 
-Copyright 2008-2010 Andrew M. Bishop.
+Copyright 2008-2011 Andrew M. Bishop.

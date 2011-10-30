@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/tagging.h,v 1.2 2010/05/23 10:18:59 amb Exp $
-
  The data types for the tagging rules.
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2010 Andrew M. Bishop
+ This file Copyright 2010-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -24,13 +22,23 @@
 #ifndef TAGGING_H
 #define TAGGING_H    /*+ To stop multiple inclusions. +*/
 
+#include "typesx.h"
+
+
+/* Constants */
+
+#define TAGACTION_SET      0
+#define TAGACTION_UNSET    1
+#define TAGACTION_OUTPUT   2
+#define TAGACTION_LOGERROR 3
+
 
 /* Data types */
 
 /*+ A structure to contain the tagging action. +*/
 typedef struct _TaggingAction
 {
- int output;                    /*+ A flag to indicate if the output tags or input tags are to be changed. +*/
+ int action;                    /*+ A flag to indicate the type of action. +*/
 
  char *k;                       /*+ The tag key (or NULL). +*/
  char *v;                       /*+ The tag value (or NULL). +*/
@@ -70,26 +78,30 @@ typedef struct _TagList
  TagList;
 
 
-/* Variables */
+/* Global variables */
 
 extern TaggingRuleList NodeRules;
 extern TaggingRuleList WayRules;
 extern TaggingRuleList RelationRules;
 
 
-/* Functions */
+/* Functions in tagging.c */
 
 int ParseXMLTaggingRules(const char *filename);
+void DeleteXMLTaggingRules(void);
 
 TaggingRule *AppendTaggingRule(TaggingRuleList *rules,const char *k,const char *v);
-void AppendTaggingAction(TaggingRule *rule,const char *k,const char *v,int output);
+void AppendTaggingAction(TaggingRule *rule,const char *k,const char *v,int action);
+void DeleteTaggingRuleList(TaggingRuleList *rules);
 
 TagList *NewTagList(void);
-void AppendTag(TagList *tags,const char *k,const char *v);
-void ModifyTag(TagList *tags,const char *k,const char *v);
 void DeleteTagList(TagList *tags);
 
-TagList *ApplyTaggingRules(TaggingRuleList *rules,TagList *tags);
+void AppendTag(TagList *tags,const char *k,const char *v);
+void ModifyTag(TagList *tags,const char *k,const char *v);
+void DeleteTag(TagList *tags,const char *k);
+
+TagList *ApplyTaggingRules(TaggingRuleList *rules,TagList *tags,node_t id);
 
 
 #endif /* TAGGING_H */

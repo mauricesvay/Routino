@@ -1,10 +1,8 @@
-# $Header: /home/amb/routino/src/xml/RCS/Makefile,v 1.10 2010/07/07 17:26:24 amb Exp $
-#
 # XML test programs Makefile
 #
 # Part of the Routino routing software.
 #
-# This file Copyright 2010 Andrew M. Bishop
+# This file Copyright 2010-2011 Andrew M. Bishop
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -48,7 +46,7 @@ EXE=xsd-to-xmlparser
 
 ########
 
-all : $(EXE) $(C) $(E)
+all: $(EXE) $(C) $(E)
 	@true
 
 ########
@@ -78,7 +76,7 @@ xsd-to-xmlparser : xsd-to-xmlparser.o ../xmlparse.o
 ########
 
 %.o : %.c
-	$(CC) -c $(CFLAGS) $(FLAGS64) -I.. $< -o $@ -MMD -MP -MF $(addprefix .deps/,$(addsuffix .d,$(basename $<)))
+	$(CC) -c $(CFLAGS) $(FLAGS64) -I.. $< -o $@ -MMD -MP -MF $(addprefix .deps/,$(addsuffix .d,$(basename $@)))
 
 ########
 
@@ -106,9 +104,14 @@ test-skeleton.c : test/test.xsd xsd-to-xmlparser
 
 ########
 
+install:
+
+########
+
 clean:
 	rm -f *.o
 	rm -f *~
+	rm -f *.gcda *.gcno *.gcov gmon.out
 
 ########
 
@@ -121,7 +124,7 @@ distclean: clean
 
 ########
 
-.deps : .FORCE
+.deps: .FORCE
 	@[ -d .deps ] || mkdir $@
 
 $(D) : .deps
@@ -131,4 +134,4 @@ include $(D)
 
 ########
 
-.FORCE :
+.FORCE:

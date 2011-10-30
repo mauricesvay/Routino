@@ -4,7 +4,7 @@
 #
 # Part of the Routino routing software.
 #
-# This file Copyright 2008-2010 Andrew M. Bishop
+# This file Copyright 2008-2011 Andrew M. Bishop
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -38,8 +38,8 @@ $query=new CGI;
 # Legal CGI parameters with regexp validity check
 
 %legalparams=(
-              "type"   => "(shortest|quickest)",
-              "format" => "(html|gpx-route|gpx-track|text|text-all)",
+              "type"   => "(shortest|quickest|router)",
+              "format" => "(html|gpx-route|gpx-track|text|text-all|log)",
 
               "uuid"   => "[0-9a-f]{32}"
              );

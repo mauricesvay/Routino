@@ -6,7 +6,7 @@
 
  Part of the Routino routing software.
 
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -65,7 +65,7 @@ Usage: planetsplitter [--help]
                       [--sort-ram-size=&lt;size&gt;]
                       [--tmpdir=&lt;dirname&gt;]
                       [--parse-only | --process-only]
-                      [--loggable]
+                      [--loggable] [--errorlog[=&lt;name&gt;]]
                       [--max-iterations=&lt;number&gt;]
                       [--tagging=&lt;filename&gt;]
                       [&lt;filename.osm&gt; ...]
@@ -95,11 +95,14 @@ Usage: planetsplitter [--help]
     routing database.
   <dt>--loggable
   <dd>Print progress messages that are suitable for logging to a file; normally
-    an incrementing counter is printed which is more suitable for realtime
+    an incrementing counter is printed which is more suitable for real-time
     display than logging.
+  <dt>--errorlog[=&lt;name&gt;]
+  <dd>Log OSM parsing and processing errors to 'error.log' or the specified file
+    name (the '--dir' and '--prefix' options are applied).
   <dt>--max-iterations=&lt;number&gt;
   <dd>The maximum number of iterations to use when generating super-nodes and
-    super-segments.  Defaults to 10 which is normally enough.
+    super-segments.  Defaults to 5 which is normally enough.
   <dt>--tagging=&lt;filename&gt;
   <dd>Sets the filename containing the list of tagging rules in XML format for
     the parsing the input files.  If the file doesn't exist then dirname, prefix
@@ -114,7 +117,7 @@ Usage: planetsplitter [--help]
 <p>
 <i>Note: In version 1.4 of Routino the --transport, --not-highway and
 --not-property options have been removed.  The same functionality can be
-achieved by editing the tagging rules file to not output unwwanted data.</i>
+achieved by editing the tagging rules file to not output unwanted data.</i>
 
 <p>
 <i>Note: In version 1.5 of Routino the --slim option has been removed but at
@@ -158,10 +161,11 @@ Usage: router [--help | --help-profile | --help-profile-xml |
               --lon1=&lt;longitude&gt; --lat1=&lt;latitude&gt;
               --lon2=&lt;longitude&gt; --lon2=&lt;latitude&gt;
               [ ... --lon99=&lt;longitude&gt; --lon99=&lt;latitude&gt;]
+              [--heading=&lt;bearing&gt;]
               [--highway-&lt;highway&gt;=&lt;preference&gt; ...]
               [--speed-&lt;highway&gt;=&lt;speed&gt; ...]
               [--property-&lt;property&gt;=&lt;preference&gt; ...]
-              [--oneway=(0|1)]
+              [--oneway=(0|1)] [--turns=(0|1)]
               [--weight=&lt;weight&gt;]
               [--height=&lt;height&gt;] [--width=&lt;width&gt;] [--length=&lt;length&gt;]
 </pre>
@@ -205,7 +209,7 @@ Usage: router [--help | --help-profile | --help-profile-xml |
     (quicker but less accurate unless the points are already near nodes).
   <dt>--loggable
   <dd>Print progress messages that are suitable for logging to a file; normally
-    an incrementing counter is printed which is more suitable for realtime
+    an incrementing counter is printed which is more suitable for real-time
     display than logging.
   <dt>--quiet
   <dd>Don't generate any screen output while running (useful for running in a script).
@@ -256,6 +260,9 @@ Usage: router [--help | --help-profile | --help-profile-xml |
   pass through each of the specified ones in sequence.  The algorithm will use
   the closest node or point within a segment that allows the specified traffic
   type.
+  <dt>--heading=&lt;bearing&gt;
+  <dd>Specifies the initial direction of travel at the start of the route (from
+  the lowest numbered waypoint) as a compass bearing from 0 to 360 degrees.
   <dt>--highway-&lt;highway&gt;=&lt;preference&gt;
   <dd>Selects the percentage preference for using each particular type of
       highway.  The value of &lt;highway&gt; can be selected from:
@@ -295,6 +302,10 @@ Usage: router [--help | --help-profile | --help-profile-xml |
   <dd>Selects if the direction of oneway streets are to be obeyed (useful to not
       obey them when walking).  Default value depends on the profile selected by
       the --transport option.
+  <dt>--turns=[0|1]
+  <dd>Selects if turn restrictions are to be obeyed (useful to not obey them
+      when walking).  Default value depends on the profile selected by the
+      --transport option.
   <dt>--weight=&lt;weight&gt;
   <dd>Specifies the weight of the mode of transport in tonnes; ensures that the
       weight limit on the highway is not exceeded.  Default value depends on the
@@ -361,7 +372,8 @@ Usage: filedumper [--help]
                                 --data=&lt;data-type&gt;]
                   [--dump [--node=&lt;node&gt; ...]
                           [--segment=&lt;segment&gt; ...]
-                          [--way=&lt;way&gt; ...]]
+                          [--way=&lt;way&gt; ...]
+                          [--turn-relation=&lt;relation&gt; ...]]
                   [--dump-osm [--no-super]
                               [--latmin=&lt;latmin&gt; --latmax=&lt;latmax&gt;
                                --lonmin=&lt;lonmin&gt; --lonmax=&lt;lonmax&gt;]]
@@ -391,6 +403,7 @@ Usage: filedumper [--help]
           <li>junctions = segment count at each junction.
           <li>super     = super-node and super-segments.
           <li>oneway    = oneway segments.
+          <li>turns     = turn restrictions.
           <li>speed     = speed limits.
           <li>weight    = weight limits.
           <li>height    = height limits.
@@ -401,6 +414,8 @@ Usage: filedumper [--help]
   <dt>--dump
   <dd>Selects a data dumping mode which allows looking at individual items in
     the databases (specifying 'all' instead of a number dumps all of them).
+    More than one of the following parameters can be specified on the command
+    line.
     <dl>
       <dt>--node=&lt;node&gt;
       <dd>Prints the information about the selected node number (internal
@@ -410,6 +425,10 @@ Usage: filedumper [--help]
       <dt>--way=&lt;way&gt;
       <dd>Prints the information about the selected way number (internal
         number, not the way id number in the original source file).
+      <dt>--turn-relation=&lt;relation&gt;
+      <dd>Prints the information about the selected turn relation number
+        (internal number, not the relation id number in the original source
+        file).
     </dl>
   <dt>--osm-dump
   <dd>Dumps the contents of the database as an OSM format XML file, the whole
@@ -449,7 +468,7 @@ Usage: tagmodifier [--help]
   <dd>Prints out the help information.
   <dt>--loggable
   <dd>Print progress messages that are suitable for logging to a file; normally
-    an incrementing counter is printed which is more suitable for realtime
+    an incrementing counter is printed which is more suitable for real-time
     display than logging.
   <dt>--tagging=&lt;filename&gt;
   <dd>The name of the XML file containing the tagging rules (defaults to

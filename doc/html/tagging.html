@@ -6,7 +6,7 @@
 
  Part of the Routino routing software.
 
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -76,7 +76,7 @@ are recognised as being affirmative and any other value is ignored.
 <h3><a name="H_1_2_1" title="Nodes"></a>Node Tags And Attributes</h3>
 
 The node attributes <em>id</em>, <em>latitude</em> and <em>longitude</em> are
-used.  The id atribute is required to associate the node with the ways and the
+used.  The id attribute is required to associate the node with the ways and the
 position attributes are required to locate the node.
 
 
@@ -94,6 +94,12 @@ By default for nodes all types of transport are allowed to pass through a node
 and specific tags must be used to remove the permissions for the transport.
 
 
+<h4><a name="H_1_2_1_2" title="highway (node)"></a>The highway Tag</h4>
+
+The <em>highway</em> tag for <em>mini_roundabout</em> is recognised since this
+provides information about places to turn around to bypass turn restrictions.
+
+
 <h3><a name="H_1_2_2" title="Ways"></a>Way Tags And Attributes</h3>
 
 The tags from the ways in the data are the ones that provide most of the
@@ -102,7 +108,7 @@ many segments associated with a way can be share a set of tags taken from the
 way.
 
 
-<h4><a name="H_1_2_2_1" title="highway"></a>The highway Tag</h4>
+<h4><a name="H_1_2_2_1" title="highway (way)"></a>The highway Tag</h4>
 
 The most important tag that is used from a way is the <em>highway</em> tag.
 This defines the type of highway that the way represents.  Any way that does not
@@ -163,13 +169,6 @@ the results.
 
 The <em>ref</em> tag is used to provide the label for the highway when printing
 the results.
-
-
-<h4><a name="H_1_2_2_5" title="junction"></a>The junction Tag</h4>
-
-The <em>junction</em> tag is used to check if a highway is (part of) a
-roundabout.  This tag is used for information to label the highway if no other
-name is provided.
 
 
 <h4><a name="H_1_2_2_6" title="multilane"></a>The multilane Tag</h4>
@@ -251,7 +250,7 @@ to metres.
 <h4><a name="H_1_2_2_16" title="maxwidth"></a>The maxwidth Tag</h4>
 
 The <em>maxwidth</em> tag is used to specify the maximum width of any traffic on
-the highway.  This must be set to the minimum width of the contraints at the
+the highway.  This must be set to the minimum width of the constraints at the
 wayside in metres.  If the tag value contains a measurement in feet or feet and
 inches then attempts are made to convert this to metres.
 
@@ -281,6 +280,16 @@ walking route and therefore should be applied to the individual member highways.
 
 The <em>bicycleroute</em> tag is used to identify whether a relation defines a
 bicycle route and therefore should be applied to the individual member highways.
+
+
+<h4><a name="H_1_2_3_3" title="type, restriction, except"></a>The type, restriction & except Tags</h4>
+
+For turn relations the information about the allowed or disallowed turns are
+stored in the <em>type</em>, <em>restriction</em> and <em>except</em> tags.  For
+a turn restriction the <em>type</em> must be equal to "restriction",
+the <em>restriction</em> must define the type of turn relation
+and <em>except</em> defines transport types which are exempt from the
+restriction.
 
 
 <h2><a name="H_1_3" title="Tag Transformations"></a>Tag Transformations</h2>
@@ -822,6 +831,14 @@ table below.
     <td class="center">yes
     <td class="center">yes
 </table>
+
+
+<h4><a name="H_1_3_3_2" title="Turn Restrictions"></a>Turn Restrictions</h4>
+
+No tag transformations are defined for turn restriction relations but
+the <em>type</em>, <em>restriction</em> and <em>except</em> tags are passed
+through without change.
+
 
 </div>
 

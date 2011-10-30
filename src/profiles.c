@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/profiles.c,v 1.47 2010/10/18 17:40:34 amb Exp $
-
  Load the profiles from a file and the functions for handling them.
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -25,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "types.h"
 #include "ways.h"
@@ -34,6 +33,8 @@
 #include "functions.h"
 #include "xmlparse.h"
 
+
+/* Local variables */
 
 /*+ The profiles that have been loaded from file. +*/
 static Profile **loaded_profiles=NULL;
@@ -52,6 +53,7 @@ static int lengthType_function(const char *_tag_,int _type_,const char *limit);
 static int widthType_function(const char *_tag_,int _type_,const char *limit);
 static int heightType_function(const char *_tag_,int _type_,const char *limit);
 static int weightType_function(const char *_tag_,int _type_,const char *limit);
+static int turnsType_function(const char *_tag_,int _type_,const char *obey);
 //static int propertiesType_function(const char *_tag_,int _type_);
 static int onewayType_function(const char *_tag_,int _type_,const char *obey);
 static int propertyType_function(const char *_tag_,int _type_,const char *type,const char *percent);
@@ -112,6 +114,13 @@ static xmltag propertiesType_tag=
                NULL,
                {&propertyType_tag,NULL}};
 
+/*+ The turnsType type tag. +*/
+static xmltag turnsType_tag=
+              {"turns",
+               1, {"obey"},
+               turnsType_function,
+               {NULL}};
+
 /*+ The weightType type tag. +*/
 static xmltag weightType_tag=
               {"weight",
@@ -145,7 +154,7 @@ static xmltag restrictionsType_tag=
               {"restrictions",
                0, {NULL},
                NULL,
-               {&onewayType_tag,&weightType_tag,&heightType_tag,&widthType_tag,&lengthType_tag,NULL}};
+               {&onewayType_tag,&turnsType_tag,&weightType_tag,&heightType_tag,&widthType_tag,&lengthType_tag,NULL}};
 
 /*+ The profileType type tag. +*/
 static xmltag profileType_tag=
@@ -204,7 +213,7 @@ static int speedType_function(const char *_tag_,int _type_,const char *highway,c
     if(highwaytype==Way_Count)
        XMLPARSE_INVALID(_tag_,highway);
 
-    XMLPARSE_ASSERT_FLOATING(_tag_,kph,speed);
+    XMLPARSE_ASSERT_FLOATING(_tag_,kph); speed=atof(kph);
 
     loaded_profiles[nloaded_profiles-1]->speed[highwaytype]=kph_to_speed(speed);
    }
@@ -257,7 +266,7 @@ static int preferenceType_function(const char *_tag_,int _type_,const char *high
     if(highwaytype==Way_Count)
        XMLPARSE_INVALID(_tag_,highway);
 
-    XMLPARSE_ASSERT_FLOATING(_tag_,percent,p);
+    XMLPARSE_ASSERT_FLOATING(_tag_,percent); p=atof(percent);
 
     loaded_profiles[nloaded_profiles-1]->highway[highwaytype]=p;
    }
@@ -310,7 +319,7 @@ static int propertyType_function(const char *_tag_,int _type_,const char *type,c
     if(property==Property_Count)
        XMLPARSE_INVALID(_tag_,type);
 
-    XMLPARSE_ASSERT_FLOATING(_tag_,percent,p);
+    XMLPARSE_ASSERT_FLOATING(_tag_,percent); p=atof(percent);
 
     loaded_profiles[nloaded_profiles-1]->props_yes[property]=p;
    }
@@ -337,7 +346,7 @@ static int onewayType_function(const char *_tag_,int _type_,const char *obey)
    {
     int o;
 
-    XMLPARSE_ASSERT_INTEGER(_tag_,obey,o);
+    XMLPARSE_ASSERT_INTEGER(_tag_,obey); o=atoi(obey);
 
     loaded_profiles[nloaded_profiles-1]->oneway=!!o;
    }
@@ -363,6 +372,33 @@ static int onewayType_function(const char *_tag_,int _type_,const char *obey)
 
 
 /*++++++++++++++++++++++++++++++++++++++
+  The function that is called when the turnsType XSD type is seen
+
+  int turnsType_function Returns 0 if no error occured or something else otherwise.
+
+  const char *_tag_ Set to the name of the element tag that triggered this function call.
+
+  int _type_ Set to XMLPARSE_TAG_START at the start of a tag and/or XMLPARSE_TAG_END at the end of a tag.
+
+  const char *obey The contents of the 'obey' attribute (or NULL if not defined).
+  ++++++++++++++++++++++++++++++++++++++*/
+
+static int turnsType_function(const char *_tag_,int _type_,const char *obey)
+{
+ if(_type_&XMLPARSE_TAG_START)
+   {
+    int o;
+
+    XMLPARSE_ASSERT_INTEGER(_tag_,obey); o=atoi(obey);
+
+    loaded_profiles[nloaded_profiles-1]->turns=!!o;
+   }
+
+ return(0);
+}
+
+
+/*++++++++++++++++++++++++++++++++++++++
   The function that is called when the weightType XSD type is seen
 
   int weightType_function Returns 0 if no error occured or something else otherwise.
@@ -380,7 +416,7 @@ static int weightType_function(const char *_tag_,int _type_,const char *limit)
    {
     double l;
 
-    XMLPARSE_ASSERT_FLOATING(_tag_,limit,l);
+    XMLPARSE_ASSERT_FLOATING(_tag_,limit); l=atof(limit);
 
     loaded_profiles[nloaded_profiles-1]->weight=tonnes_to_weight(l);
    }
@@ -407,7 +443,7 @@ static int heightType_function(const char *_tag_,int _type_,const char *limit)
    {
     double l;
 
-    XMLPARSE_ASSERT_FLOATING(_tag_,limit,l);
+    XMLPARSE_ASSERT_FLOATING(_tag_,limit); l=atof(limit);
 
     loaded_profiles[nloaded_profiles-1]->height=metres_to_height(l);
    }
@@ -434,7 +470,7 @@ static int widthType_function(const char *_tag_,int _type_,const char *limit)
    {
     double l;
 
-    XMLPARSE_ASSERT_FLOATING(_tag_,limit,l);
+    XMLPARSE_ASSERT_FLOATING(_tag_,limit); l=atof(limit);
 
     loaded_profiles[nloaded_profiles-1]->width=metres_to_width(l);
    }
@@ -461,7 +497,7 @@ static int lengthType_function(const char *_tag_,int _type_,const char *limit)
    {
     double l;
 
-    XMLPARSE_ASSERT_FLOATING(_tag_,limit,l);
+    XMLPARSE_ASSERT_FLOATING(_tag_,limit); l=atof(limit);
 
     loaded_profiles[nloaded_profiles-1]->length=metres_to_length(l);
    }
@@ -580,6 +616,7 @@ static int profileType_function(const char *_tag_,int _type_,const char *name,co
 
 int ParseXMLProfiles(const char *filename)
 {
+ FILE *file;
  int retval;
 
  if(!ExistsFile(filename))
@@ -588,7 +625,7 @@ int ParseXMLProfiles(const char *filename)
     return(1);
    }
 
- FILE *file=fopen(filename,"r");
+ file=fopen(filename,"r");
 
  if(!file)
    {
@@ -618,7 +655,7 @@ int ParseXMLProfiles(const char *filename)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Get the profile for a type of transport.
+  Get a named profile.
 
   Profile *GetProfile Returns a pointer to the profile.
 
@@ -638,7 +675,7 @@ Profile *GetProfile(const char *name)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Update a profile with highway preference scaling factor.
+  Update a profile with the highway preference scaling factors.
 
   int UpdateProfile Returns 1 in case of a problem.
 
@@ -654,7 +691,7 @@ int UpdateProfile(Profile *profile,Ways *ways)
 
  /* Fix up the allowed transport types. */
 
- profile->allow=ALLOWED(profile->transport);
+ profile->allow=TRANSPORTS(profile->transport);
 
  if(!(profile->allow & ways->file.allow))
     return(1);
@@ -744,7 +781,7 @@ int UpdateProfile(Profile *profile,Ways *ways)
 
 void PrintProfile(const Profile *profile)
 {
- unsigned int i;
+ int i;
 
  printf("Profile\n=======\n");
 
@@ -771,6 +808,7 @@ void PrintProfile(const Profile *profile)
  printf("\n");
 
  printf("Obey one-way  : %s\n",profile->oneway?"yes":"no");
+ printf("Obey turns    : %s\n",profile->turns?"yes":"no");
  printf("Minimum weight: %.1f tonnes\n",weight_to_tonnes(profile->weight));
  printf("Minimum height: %.1f metres\n",height_to_metres(profile->height));
  printf("Minimum width : %.1f metres\n",width_to_metres(profile->width));
@@ -779,12 +817,12 @@ void PrintProfile(const Profile *profile)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Print out the profiles as XML for use as program input.
+  Print out all of the loaded profiles as XML for use as program input.
   ++++++++++++++++++++++++++++++++++++++*/
 
 void PrintProfilesXML(void)
 {
- unsigned int i,j;
+ int i,j;
  char *padding="                ";
 
  printf("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n");
@@ -814,6 +852,7 @@ void PrintProfilesXML(void)
 
     printf("    <restrictions>\n");
     printf("      <oneway obey=\"%d\" /> \n",loaded_profiles[j]->oneway);
+    printf("      <turns  obey=\"%d\" /> \n",loaded_profiles[j]->turns);
     printf("      <weight limit=\"%.1f\" />\n",weight_to_tonnes(loaded_profiles[j]->weight));
     printf("      <height limit=\"%.1f\" />\n",height_to_metres(loaded_profiles[j]->height));
     printf("      <width  limit=\"%.1f\" />\n",width_to_metres(loaded_profiles[j]->width));
@@ -829,12 +868,12 @@ void PrintProfilesXML(void)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Print out the profiles as JavaScript Object Notation for use in a web form.
+  Print out all of the loaded profiles as JavaScript Object Notation for use in a web page.
   ++++++++++++++++++++++++++++++++++++++*/
 
 void PrintProfilesJSON(void)
 {
- unsigned int i,j;
+ int i,j;
 
  printf("var routino={ // contains all default Routino options (generated using \"--help-profile-json\").\n");
  printf("\n");
@@ -865,7 +904,7 @@ void PrintProfilesJSON(void)
  printf("\n");
 
  printf("  // Restriction types\n");
- printf("  restrictions: { oneway: 1, weight: 2, height: 3, width: 4, length: 5 },\n");
+ printf("  restrictions: { oneway: 1, turns: 2, weight: 3, height: 4, width: 5, length: 6 },\n");
  printf("\n");
 
  printf("  // Allowed highways\n");
@@ -910,6 +949,10 @@ void PrintProfilesJSON(void)
  for(j=0;j<nloaded_profiles;j++)
     printf("%s%s: %4d",j==0?"":", ",TransportName(loaded_profiles[j]->transport),loaded_profiles[j]->oneway);
  printf(" },\n");
+ printf("    %12s: { ","turns");
+ for(j=0;j<nloaded_profiles;j++)
+    printf("%s%s: %4d",j==0?"":", ",TransportName(loaded_profiles[j]->transport),loaded_profiles[j]->turns);
+ printf(" },\n");
  printf("    %12s: { ","weight");
  for(j=0;j<nloaded_profiles;j++)
     printf("%s%s: %4.1f",j==0?"":", ",TransportName(loaded_profiles[j]->transport),weight_to_tonnes(loaded_profiles[j]->weight));
@@ -934,12 +977,12 @@ void PrintProfilesJSON(void)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Print out the profiles as Perl for use in a web CGI.
+  Print out all of the loaded profiles as Perl for use in a web CGI.
   ++++++++++++++++++++++++++++++++++++++*/
 
 void PrintProfilesPerl(void)
 {
- unsigned int i,j;
+ int i,j;
 
  printf("$routino={ # contains all default Routino options (generated using \"--help-profile-perl\").\n");
  printf("\n");
@@ -970,7 +1013,7 @@ void PrintProfilesPerl(void)
  printf("\n");
 
  printf("  # Restriction types\n");
- printf("  restrictions => { oneway => 1, weight => 2, height => 3, width => 4, length => 5 },\n");
+ printf("  restrictions => { oneway => 1, turns => 2, weight => 3, height => 4, width => 5, length => 6 },\n");
  printf("\n");
 
  printf("  # Allowed highways\n");
@@ -1014,6 +1057,10 @@ void PrintProfilesPerl(void)
  printf("    %12s => {","oneway");
  for(j=0;j<nloaded_profiles;j++)
     printf("%s %s => %4d",j==0?"":", ",TransportName(loaded_profiles[j]->transport),loaded_profiles[j]->oneway);
+ printf(" },\n");
+ printf("    %12s => {","turns");
+ for(j=0;j<nloaded_profiles;j++)
+    printf("%s %s => %4d",j==0?"":", ",TransportName(loaded_profiles[j]->transport),loaded_profiles[j]->turns);
  printf(" },\n");
  printf("    %12s => {","weight");
  for(j=0;j<nloaded_profiles;j++)

@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!-- ============================================================
-     $Header$
-
      An XML Schema Definition for the Routino profile XML format
 
      Part of the Routino routing software.
      ============================================================
-     This file Copyright 2010 Andrew M. Bishop
+     This file Copyright 2010-2011 Andrew M. Bishop
 
      This program is free software: you can redistribute it and/or modify
      it under the terms of the GNU Affero General Public License as published by
@@ -61,6 +59,7 @@
   <xsd:complexType name="restrictionsType">
     <xsd:sequence>
       <xsd:element name="oneway" type="onewayType"/>
+      <xsd:element name="turns"  type="turnsType"/>
       <xsd:element name="weight" type="weightType"/>
       <xsd:element name="height" type="heightType"/>
       <xsd:element name="width"  type="widthType"/>
@@ -86,6 +85,10 @@
   </xsd:complexType>
 
   <xsd:complexType name="onewayType">
+    <xsd:attribute name="obey"    type="xsd:string"/>
+  </xsd:complexType>
+
+  <xsd:complexType name="turnsType">
     <xsd:attribute name="obey"    type="xsd:string"/>
   </xsd:complexType>
 

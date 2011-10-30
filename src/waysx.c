@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/waysx.c,v 1.52 2010/11/13 14:22:28 amb Exp $
-
  Extended Way data type functions.
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -34,16 +32,20 @@
 
 #include "files.h"
 #include "logging.h"
-#include "functions.h"
+#include "sorting.h"
 
 
-/* Variables */
+/* Global variables */
 
 /*+ The command line '--tmpdir' option or its default value. +*/
 extern char *option_tmpdirname;
 
+
+/* Local variables */
+
 /*+ A temporary file-local variable for use by the sort functions. +*/
 static WaysX *sortwaysx;
+
 
 /* Functions */
 
@@ -75,7 +77,7 @@ WaysX *NewWayList(int append)
  if(append)
     sprintf(waysx->filename,"%s/waysx.input.tmp",option_tmpdirname);
  else
-    sprintf(waysx->filename,"%s/waysx.%p.tmp",option_tmpdirname,waysx);
+    sprintf(waysx->filename,"%s/waysx.%p.tmp",option_tmpdirname,(void*)waysx);
 
  if(append)
    {
@@ -92,7 +94,7 @@ WaysX *NewWayList(int append)
        SeekFile(waysx->fd,position);
        ReadFile(waysx->fd,&waysize,FILESORT_VARSIZE);
 
-       waysx->xnumber++;
+       waysx->number++;
        position+=waysize+FILESORT_VARSIZE;
       }
 
@@ -102,7 +104,7 @@ WaysX *NewWayList(int append)
     waysx->fd=OpenFileNew(waysx->filename);
 
  waysx->nfilename=(char*)malloc(strlen(option_tmpdirname)+32);
- sprintf(waysx->nfilename,"%s/waynames.%p.tmp",option_tmpdirname,waysx);
+ sprintf(waysx->nfilename,"%s/waynames.%p.tmp",option_tmpdirname,(void*)waysx);
 
  return(waysx);
 }
@@ -111,9 +113,9 @@ WaysX *NewWayList(int append)
 /*++++++++++++++++++++++++++++++++++++++
   Free a way list.
 
-  WaysX *waysx The list to be freed.
+  WaysX *waysx The set of ways to be freed.
 
-  int keep Set to 1 if the file is to be kept.
+  int keep Set to 1 if the file is to be kept (for appending later).
   ++++++++++++++++++++++++++++++++++++++*/
 
 void FreeWayList(WaysX *waysx,int keep)
@@ -137,7 +139,7 @@ void FreeWayList(WaysX *waysx,int keep)
 /*++++++++++++++++++++++++++++++++++++++
   Append a single way to an unsorted way list.
 
-  WaysX* waysx The set of ways to process.
+  WaysX *waysx The set of ways to process.
 
   way_t id The ID of the way.
 
@@ -146,7 +148,7 @@ void FreeWayList(WaysX *waysx,int keep)
   const char *name The name or reference of the way.
   ++++++++++++++++++++++++++++++++++++++*/
 
-void AppendWay(WaysX* waysx,way_t id,Way *way,const char *name)
+void AppendWay(WaysX *waysx,way_t id,Way *way,const char *name)
 {
  WayX wayx;
  FILESORT_VARINT size;
@@ -161,22 +163,22 @@ void AppendWay(WaysX* waysx,way_t id,Way *way,const char *name)
  WriteFile(waysx->fd,&wayx,sizeof(WayX));
  WriteFile(waysx->fd,name,strlen(name)+1);
 
- waysx->xnumber++;
+ waysx->number++;
 
- assert(!(waysx->xnumber==0)); /* Zero marks the high-water mark for ways. */
+ assert(!(waysx->number==0)); /* Zero marks the high-water mark for ways. */
 }
 
 
 /*++++++++++++++++++++++++++++++++++++++
   Sort the list of ways.
 
-  WaysX* waysx The set of ways to process.
+  WaysX *waysx The set of ways to process.
   ++++++++++++++++++++++++++++++++++++++*/
 
-void SortWayList(WaysX* waysx)
+void SortWayList(WaysX *waysx)
 {
- index_t i;
- int fd,nfd;
+ index_t i,xnumber;
+ int fd;
  char *names[2]={NULL,NULL};
  int namelen[2]={0,0};
  int nnames=0;
@@ -186,9 +188,12 @@ void SortWayList(WaysX* waysx)
 
  printf_first("Sorting Ways by Name");
 
- /* Close the file and re-open it (finished appending) */
+ /* Close the file (finished appending) */
 
- CloseFile(waysx->fd);
+ waysx->fd=CloseFile(waysx->fd);
+
+ /* Re-open the file read-only and a new file writeable */
+
  waysx->fd=ReOpenFile(waysx->filename);
 
  DeleteFile(waysx->filename);
@@ -201,30 +206,31 @@ void SortWayList(WaysX* waysx)
 
  /* Close the files */
 
- CloseFile(waysx->fd);
+ waysx->fd=CloseFile(waysx->fd);
  CloseFile(fd);
 
  /* Print the final message */
 
- printf_last("Sorted Ways by Name: Ways=%d",waysx->xnumber);
+ printf_last("Sorted Ways by Name: Ways=%"Pindex_t,waysx->number);
 
 
  /* Print the start message */
 
  printf_first("Separating Way Names: Ways=0 Names=0");
 
- /* Open the files */
+ /* Re-open the file read-only and new files writeable */
 
  waysx->fd=ReOpenFile(waysx->filename);
 
  DeleteFile(waysx->filename);
 
  fd=OpenFileNew(waysx->filename);
- nfd=OpenFileNew(waysx->nfilename);
+
+ waysx->nfd=OpenFileNew(waysx->nfilename);
 
  /* Copy from the single file into two files */
 
- for(i=0;i<waysx->xnumber;i++)
+ for(i=0;i<waysx->number;i++)
    {
     WayX wayx;
     FILESORT_VARINT size;
@@ -239,7 +245,7 @@ void SortWayList(WaysX* waysx)
 
     if(nnames==0 || strcmp(names[0],names[1]))
       {
-       WriteFile(nfd,names[nnames%2],size-sizeof(WayX));
+       WriteFile(waysx->nfd,names[nnames%2],size-sizeof(WayX));
 
        lastlength=waysx->nlength;
        waysx->nlength+=size-sizeof(WayX);
@@ -251,8 +257,8 @@ void SortWayList(WaysX* waysx)
 
     WriteFile(fd,&wayx,sizeof(WayX));
 
-    if(!((i+1)%10000))
-       printf_middle("Separating Way Names: Ways=%d Names=%d",i+1,nnames);
+    if(!((i+1)%1000))
+       printf_middle("Separating Way Names: Ways=%"Pindex_t" Names=%"Pindex_t,i+1,nnames);
    }
 
  if(names[0]) free(names[0]);
@@ -260,23 +266,21 @@ void SortWayList(WaysX* waysx)
 
  /* Close the files */
 
- CloseFile(waysx->fd);
+ waysx->fd=CloseFile(waysx->fd);
  CloseFile(fd);
 
- waysx->fd=ReOpenFile(waysx->filename);
-
- CloseFile(nfd);
+ waysx->nfd=CloseFile(waysx->nfd);
 
  /* Print the final message */
 
- printf_last("Separated Way Names: Ways=%d Names=%d ",waysx->xnumber,nnames);
+ printf_last("Separated Way Names: Ways=%"Pindex_t" Names=%"Pindex_t" ",waysx->number,nnames);
 
 
  /* Print the start message */
 
  printf_first("Sorting Ways");
 
- /* Open the files */
+ /* Re-open the file read-only and a new file writeable */
 
  waysx->fd=ReOpenFile(waysx->filename);
 
@@ -286,38 +290,37 @@ void SortWayList(WaysX* waysx)
 
  /* Allocate the array of indexes */
 
- waysx->idata=(way_t*)malloc(waysx->xnumber*sizeof(way_t));
+ waysx->idata=(way_t*)malloc(waysx->number*sizeof(way_t));
 
  assert(waysx->idata); /* Check malloc() worked */
 
  /* Sort the ways by index and index them */
 
+ xnumber=waysx->number;
  waysx->number=0;
 
  sortwaysx=waysx;
 
  filesort_fixed(waysx->fd,fd,sizeof(WayX),(int (*)(const void*,const void*))sort_by_id,(int (*)(void*,index_t))deduplicate_and_index_by_id);
 
- /* Close the files and re-open them */
+ /* Close the files */
 
- CloseFile(waysx->fd);
+ waysx->fd=CloseFile(waysx->fd);
  CloseFile(fd);
-
- waysx->fd=ReOpenFile(waysx->filename);
 
  /* Print the final message */
 
- printf_last("Sorted Ways: Ways=%d Duplicates=%d",waysx->number,waysx->xnumber-waysx->number);
+ printf_last("Sorted Ways: Ways=%"Pindex_t" Duplicates=%"Pindex_t,xnumber,xnumber-waysx->number);
 }
 
 
 /*++++++++++++++++++++++++++++++++++++++
   Compact the list of ways.
 
-  WaysX* waysx The set of ways to process.
+  WaysX *waysx The set of ways to process.
   ++++++++++++++++++++++++++++++++++++++*/
 
-void CompactWayList(WaysX* waysx)
+void CompactWayList(WaysX *waysx)
 {
  index_t i;
  int fd;
@@ -327,9 +330,8 @@ void CompactWayList(WaysX* waysx)
 
  printf_first("Sorting Ways by Properties");
 
- /* Close the file and re-open it */
+ /* Re-open the file read-only and a new file writeable */
 
- CloseFile(waysx->fd);
  waysx->fd=ReOpenFile(waysx->filename);
 
  DeleteFile(waysx->filename);
@@ -342,19 +344,19 @@ void CompactWayList(WaysX* waysx)
 
  /* Close the files */
 
- CloseFile(waysx->fd);
+ waysx->fd=CloseFile(waysx->fd);
  CloseFile(fd);
 
  /* Print the final message */
 
- printf_last("Sorted Ways by Properties: Ways=%d",waysx->number);
+ printf_last("Sorted Ways by Properties: Ways=%"Pindex_t,waysx->number);
 
 
  /* Print the start message */
 
  printf_first("Compacting Ways: Ways=0 Properties=0");
 
- /* Open the files */
+ /* Re-open the file read-only and a new file writeable */
 
  waysx->fd=ReOpenFile(waysx->filename);
 
@@ -383,25 +385,25 @@ void CompactWayList(WaysX* waysx)
 
     WriteFile(fd,&wayx,sizeof(WayX));
 
-    if(!((i+1)%10000))
-       printf_middle("Compacting Ways: Ways=%d Properties=%d",i+1,waysx->cnumber);
+    if(!((i+1)%1000))
+       printf_middle("Compacting Ways: Ways=%"Pindex_t" Properties=%"Pindex_t,i+1,waysx->cnumber);
    }
 
  /* Close the files */
 
- CloseFile(waysx->fd);
+ waysx->fd=CloseFile(waysx->fd);
  CloseFile(fd);
 
  /* Print the final message */
 
- printf_last("Compacted Ways: Ways=%d Properties=%d ",waysx->number,waysx->cnumber);
+ printf_last("Compacted Ways: Ways=%"Pindex_t" Properties=%"Pindex_t" ",waysx->number,waysx->cnumber);
 
 
  /* Print the start message */
 
  printf_first("Sorting Ways");
 
- /* Open the files */
+ /* Re-open the file read-only and a new file writeable */
 
  waysx->fd=ReOpenFile(waysx->filename);
 
@@ -413,16 +415,14 @@ void CompactWayList(WaysX* waysx)
 
  filesort_fixed(waysx->fd,fd,sizeof(WayX),(int (*)(const void*,const void*))sort_by_id,NULL);
 
- /* Close the files and re-open them */
+ /* Close the files */
 
- CloseFile(waysx->fd);
+ waysx->fd=CloseFile(waysx->fd);
  CloseFile(fd);
-
- waysx->fd=ReOpenFile(waysx->filename);
 
  /* Print the final message */
 
- printf_last("Sorted Ways: Ways=%d",waysx->number);
+ printf_last("Sorted Ways: Ways=%"Pindex_t,waysx->number);
 }
 
 
@@ -451,7 +451,7 @@ static int sort_by_id(WayX *a,WayX *b)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Sort the ways into name and id order.
+  Sort the ways into name order and then id order.
 
   int sort_by_name_and_id Returns the comparison of the name and id fields.
 
@@ -506,9 +506,9 @@ static int sort_by_name_and_prop_and_id(WayX *a,WayX *b)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Deduplicate the extended ways using the id after sorting and create the index.
+  Create the index of identifiers and discard duplicate ways.
 
-  int deduplicate_and_index_by_id Return 1 if the value is to be kept, otherwise zero.
+  int deduplicate_and_index_by_id Return 1 if the value is to be kept, otherwise 0.
 
   WayX *wayx The extended way.
 
@@ -529,8 +529,12 @@ static int deduplicate_and_index_by_id(WayX *wayx,index_t index)
 
     return(1);
    }
+ else
+   {
+    logerror("Way %"Pway_t" is duplicated.\n",wayx->id);
 
- return(0);
+    return(0);
+   }
 }
 
 
@@ -539,16 +543,16 @@ static int deduplicate_and_index_by_id(WayX *wayx,index_t index)
 
   index_t IndexWayX Returns the index of the extended way with the specified id.
 
-  WaysX* waysx The set of ways to process.
+  WaysX *waysx The set of ways to process.
 
   way_t id The way id to look for.
   ++++++++++++++++++++++++++++++++++++++*/
 
-index_t IndexWayX(WaysX* waysx,way_t id)
+index_t IndexWayX(WaysX *waysx,way_t id)
 {
- int start=0;
- int end=waysx->number-1;
- int mid;
+ index_t start=0;
+ index_t end=waysx->number-1;
+ index_t mid;
 
  /* Binary search - search key exact match only is required.
   *
@@ -576,7 +580,7 @@ index_t IndexWayX(WaysX* waysx,way_t id)
        if(waysx->idata[mid]<id)      /* Mid point is too low */
           start=mid+1;
        else if(waysx->idata[mid]>id) /* Mid point is too high */
-          end=mid-1;
+          end=mid?(mid-1):mid;
        else                          /* Mid point is correct */
           return(mid);
       }
@@ -596,28 +600,31 @@ index_t IndexWayX(WaysX* waysx,way_t id)
 /*++++++++++++++++++++++++++++++++++++++
   Save the way list to a file.
 
-  WaysX* waysx The set of ways to save.
+  WaysX *waysx The set of ways to save.
 
   const char *filename The name of the file to save.
   ++++++++++++++++++++++++++++++++++++++*/
 
-void SaveWayList(WaysX* waysx,const char *filename)
+void SaveWayList(WaysX *waysx,const char *filename)
 {
  index_t i;
- int fd,nfd;
+ int fd;
  int position=0;
  WaysFile waysfile={0};
- allow_t allow=0;
- wayprop_t  props=0;
+ highways_t   highways=0;
+ transports_t allow=0;
+ properties_t props=0;
 
  /* Print the start message */
 
  printf_first("Writing Ways: Ways=0");
 
- /* Map into memory */
+ /* Map into memory /  open the file */
 
 #if !SLIM
- waysx->xdata=MapFile(waysx->filename);
+ waysx->data=MapFile(waysx->filename);
+#else
+ waysx->fd=ReOpenFile(waysx->filename);
 #endif
 
  /* Write out the ways data */
@@ -630,27 +637,30 @@ void SaveWayList(WaysX* waysx,const char *filename)
    {
     WayX *wayx=LookupWayX(waysx,i,1);
 
-    allow|=wayx->way.allow;
-    props|=wayx->way.props;
+    highways|=HIGHWAYS(wayx->way.type);
+    allow   |=wayx->way.allow;
+    props   |=wayx->way.props;
 
     SeekFile(fd,sizeof(WaysFile)+(off_t)wayx->prop*sizeof(Way));
     WriteFile(fd,&wayx->way,sizeof(Way));
 
-    if(!((i+1)%10000))
-       printf_middle("Writing Ways: Ways=%d",i+1);
+    if(!((i+1)%1000))
+       printf_middle("Writing Ways: Ways=%"Pindex_t,i+1);
    }
 
- /* Unmap from memory */
+ /* Unmap from memory / close the file */
 
 #if !SLIM
- waysx->xdata=UnmapFile(waysx->filename);
+ waysx->data=UnmapFile(waysx->filename);
+#else
+ waysx->fd=CloseFile(waysx->fd);
 #endif
 
  /* Write out the ways names */
 
  SeekFile(fd,sizeof(WaysFile)+(off_t)waysx->cnumber*sizeof(Way));
 
- nfd=ReOpenFile(waysx->nfilename);
+ waysx->nfd=ReOpenFile(waysx->nfilename);
 
  while(position<waysx->nlength)
    {
@@ -660,21 +670,24 @@ void SaveWayList(WaysX* waysx,const char *filename)
     if((waysx->nlength-position)<1024)
        len=waysx->nlength-position;
 
-    ReadFile(nfd,temp,len);
+    ReadFile(waysx->nfd,temp,len);
     WriteFile(fd,temp,len);
 
     position+=len;
    }
 
- CloseFile(nfd);
+ /* Close the file */
+
+ waysx->nfd=CloseFile(waysx->nfd);
 
  /* Write out the header structure */
 
- waysfile.number=waysx->cnumber;
+ waysfile.number =waysx->cnumber;
  waysfile.onumber=waysx->number;
 
- waysfile.allow=allow;
- waysfile.props=props;
+ waysfile.highways=highways;
+ waysfile.allow   =allow;
+ waysfile.props   =props;
 
  SeekFile(fd,0);
  WriteFile(fd,&waysfile,sizeof(WaysFile));
@@ -683,5 +696,5 @@ void SaveWayList(WaysX* waysx,const char *filename)
 
  /* Print the final message */
 
- printf_last("Wrote Ways: Ways=%d",waysx->number);
+ printf_last("Wrote Ways: Ways=%"Pindex_t,waysx->number);
 }

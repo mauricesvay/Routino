@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/logging.h,v 1.2 2010/11/13 14:50:33 amb Exp $
-
  Header file for logging function prototypes
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -33,7 +31,7 @@
 extern int option_loggable;
 
 
-/* In logging.c */
+/* Runtime progress logging functions in logging.c */
 
 #ifdef __GNUC__
 
@@ -54,6 +52,22 @@ void printf_last(const char *format, ...);
 void fprintf_first(FILE *file,const char *format, ...);
 void fprintf_middle(FILE *file,const char *format, ...);
 void fprintf_last(FILE *file,const char *format, ...);
+
+#endif
+
+
+/* Parsing/processing error logging functions in logging.c */
+
+void open_errorlog(const char *filename,int append);
+void close_errorlog(void);
+
+#ifdef __GNUC__
+
+void logerror(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
+
+#else
+
+void logerror(const char *format, ...);
 
 #endif
 

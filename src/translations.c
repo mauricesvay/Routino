@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/translations.c,v 1.13 2010/09/15 18:30:08 amb Exp $
-
  Load the translations from a file and the functions for handling them.
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2010 Andrew M. Bishop
+ This file Copyright 2010-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -413,10 +411,9 @@ static int TurnType_function(const char *_tag_,int _type_,const char *direction,
  if(_type_&XMLPARSE_TAG_START && store)
    {
     char *xmlstring;
-
     int d;
 
-    XMLPARSE_ASSERT_INTEGER(_tag_,direction,d);
+    XMLPARSE_ASSERT_INTEGER(_tag_,direction); d=atoi(direction);
     XMLPARSE_ASSERT_STRING(_tag_,string);
 
     d+=4;
@@ -454,7 +451,7 @@ static int HeadingType_function(const char *_tag_,int _type_,const char *directi
     char *xmlstring;
     int d;
 
-    XMLPARSE_ASSERT_INTEGER(_tag_,direction,d);
+    XMLPARSE_ASSERT_INTEGER(_tag_,direction); d=atoi(direction);
     XMLPARSE_ASSERT_STRING(_tag_,string);
 
     d+=4;
@@ -1099,6 +1096,7 @@ static int languageType_function(const char *_tag_,int _type_,const char *lang)
 
 int ParseXMLTranslations(const char *filename,const char *language)
 {
+ FILE *file;
  int retval;
 
  store_lang=language;
@@ -1109,7 +1107,7 @@ int ParseXMLTranslations(const char *filename,const char *language)
     return(1);
    }
 
- FILE *file=fopen(filename,"r");
+ file=fopen(filename,"r");
 
  if(!file)
    {

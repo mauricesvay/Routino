@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/ways.c,v 1.46 2010/07/24 10:09:07 amb Exp $
-
  Way data type functions.
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -32,7 +30,7 @@
 /*++++++++++++++++++++++++++++++++++++++
   Load in a way list from a file.
 
-  Ways* LoadWayList Returns the way list.
+  Ways *LoadWayList Returns the way list.
 
   const char *filename The name of the file to load.
   ++++++++++++++++++++++++++++++++++++++*/
@@ -40,6 +38,9 @@
 Ways *LoadWayList(const char *filename)
 {
  Ways *ways;
+#if SLIM
+ int i;
+#endif
 
  ways=(Ways*)malloc(sizeof(Ways));
 
@@ -64,9 +65,11 @@ Ways *LoadWayList(const char *filename)
 
  ReadFile(ways->fd,&ways->file,sizeof(WaysFile));
 
+ for(i=0;i<sizeof(ways->cached)/sizeof(ways->cached[0]);i++)
+    ways->incache[i]=NO_WAY;
+
  ways->namesoffset=sizeof(WaysFile)+ways->file.number*sizeof(Way);
 
- ways->nincache=~0;
  ways->ncached=NULL;
 
 #endif

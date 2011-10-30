@@ -19,7 +19,7 @@
    recorded and these set default limits on the types of traffic allowed.
    More specific information about permissions for different types of
    transport are also recorded as are maximum speed limits. Further
-   restrictions like oneway streets, weight, height, width and length
+   restrictions like one-way streets, weight, height, width and length
    limits are also included where specified. Additionally a set of
    properties of each highway are also recorded. The processing of the
    input file is controlled by a configuration file which determines the
@@ -33,7 +33,9 @@
    default and any specified in the original data). To make use of the
    information about restrictions the weight, height, width and length of
    the transport can also be specified. Further preferences about road
-   properties (e.g. paved or not) can also be selected.
+   properties (e.g. paved or not) can also be selected. The simplest type
+   of turn restrictions (those formed from an initial way, a node and a
+   second way) are also obeyed.
 
    The result of calculating the route can be presented in several
    different ways. An HTML file can be produced that contains a
@@ -105,6 +107,10 @@ Status
    Version 1.4.1 of Routino was released on 10th July 2010.
    Version 1.5 of Routino was released on 30th October 2010.
    Version 1.5.1 of Routino was released on 13th November 2010.
+   Version 2.0 of Routino was released on 30th May 2011.
+   Version 2.0.1 of Routino was released on 7th June 2011.
+   Version 2.0.2 of Routino was released on 26th June 2011.
+   Version 2.0.3 of Routino was released on 4th August 2011.
 
    The full version history is available in the NEWS.txt file.
 
@@ -126,7 +132,7 @@ License
 Copyright
 ---------
 
-   Routino is copyright Andrew M. Bishop 2008-2010.
+   Routino is copyright Andrew M. Bishop 2008-2011.
 
    Contact amb@gedanken.demon.co.uk for any questions or queries.
 
@@ -149,4 +155,4 @@ Download
 
 --------
 
-Copyright 2008-2010 Andrew M. Bishop.
+Copyright 2008-2011 Andrew M. Bishop.

@@ -29,7 +29,7 @@ Node Tags And Attributes
 ------------------------
 
    The node attributes id, latitude and longitude are used. The id
-   atribute is required to associate the node with the ways and the
+   attribute is required to associate the node with the ways and the
    position attributes are required to locate the node.
 
 Transport Specific Tags
@@ -102,13 +102,6 @@ The ref Tag
 
    The ref tag is used to provide the label for the highway when printing
    the results.
-
-The junction Tag
-- - - - - - - -
-
-   The junction tag is used to check if a highway is (part of) a
-   roundabout. This tag is used for information to label the highway if no
-   other name is provided.
 
 The multilane Tag
 - - - - - - - - -
@@ -192,9 +185,10 @@ The maxwidth Tag
 - - - - - - - -
 
    The maxwidth tag is used to specify the maximum width of any traffic on
-   the highway. This must be set to the minimum width of the contraints at
-   the wayside in metres. If the tag value contains a measurement in feet
-   or feet and inches then attempts are made to convert this to metres.
+   the highway. This must be set to the minimum width of the constraints
+   at the wayside in metres. If the tag value contains a measurement in
+   feet or feet and inches then attempts are made to convert this to
+   metres.
 
 The maxlength Tag
 - - - - - - - - -
@@ -225,6 +219,15 @@ The bicycleroute Tag
    The bicycleroute tag is used to identify whether a relation defines a
    bicycle route and therefore should be applied to the individual member
    highways.
+
+The type, restriction & except Tags
+- - - - - - - - - - - - - - - - - -
+
+   For turn relations the information about the allowed or disallowed
+   turns are stored in the type, restriction and except tags. For a turn
+   restriction the type must be equal to "restriction", the restriction
+   must define the type of turn relation and except defines transport
+   types which are exempt from the restriction.
 
 
 Tag Transformations
@@ -325,7 +328,7 @@ Highway Defaults
    track        yes  yes    yes        yes     no    no        no       no    no  no
    cycleway     yes  no     yes        yes     no    no        no       no    no  no
    path         yes  yes(1) yes        yes(1)  no    no        no       no    no  no
-   steps        yes  no     yes        no      no    no        no       no    no  no
+   steps        yes  no     no         no      no    no        no       no    no  no
 
    Note 1: A path allows bicycle or horse access by default only if
    actually labelled as a highway of type "bridleway" or certain values of
@@ -446,7 +449,14 @@ Routes
    bicycle                      no                 yes
    bicycle;foot or foot;bicycle yes                yes
 
+Turn Restrictions
+- - - - - - - - -
+
+   No tag transformations are defined for turn restriction relations but
+   the type, restriction and except tags are passed through without
+   change.
+
 
 --------
 
-Copyright 2008-2010 Andrew M. Bishop.
+Copyright 2008-2011 Andrew M. Bishop.

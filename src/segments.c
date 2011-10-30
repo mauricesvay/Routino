@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/segments.c,v 1.47 2010/07/23 14:35:27 amb Exp $
-
  Segment data type functions.
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -24,11 +22,13 @@
 
 #include <sys/types.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "types.h"
 #include "nodes.h"
 #include "segments.h"
 #include "ways.h"
+#include "fakes.h"
 
 #include "files.h"
 #include "profiles.h"
@@ -37,7 +37,7 @@
 /*++++++++++++++++++++++++++++++++++++++
   Load in a segment list from a file.
 
-  Segments* LoadSegmentList Returns the segment list that has just been loaded.
+  Segments *LoadSegmentList Returns the segment list that has just been loaded.
 
   const char *filename The name of the file to load.
   ++++++++++++++++++++++++++++++++++++++*/
@@ -45,6 +45,9 @@
 Segments *LoadSegmentList(const char *filename)
 {
  Segments *segments;
+#if SLIM
+ int i;
+#endif
 
  segments=(Segments*)malloc(sizeof(Segments));
 
@@ -68,9 +71,8 @@ Segments *LoadSegmentList(const char *filename)
 
  ReadFile(segments->fd,&segments->file,sizeof(SegmentsFile));
 
- segments->incache[0]=NO_SEGMENT;
- segments->incache[1]=NO_SEGMENT;
- segments->incache[2]=NO_SEGMENT;
+ for(i=0;i<sizeof(segments->cached)/sizeof(segments->cached[0]);i++)
+    segments->incache[i]=NO_SEGMENT;
 
 #endif
 
@@ -79,50 +81,87 @@ Segments *LoadSegmentList(const char *filename)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Find the next segment with a particular starting node.
+  Find the closest segment from a specified node heading in a particular direction and optionally profile.
 
-  Segment *NextSegment Returns a pointer to the next segment with the same id.
+  index_t FindClosestSegmentHeading Returns the closest heading segment index.
 
-  Segments* segments The set of segments to process.
+  Nodes *nodes The set of nodes to use.
 
-  Segment *segment The current segment.
+  Segments *segments The set of segments to use.
 
-  index_t node The current node.
+  Ways *ways The set of ways to use.
+
+  index_t node1 The node to start from.
+
+  double heading The desired heading from the node.
+
+  Profile *profile The profile of the mode of transport (or NULL).
   ++++++++++++++++++++++++++++++++++++++*/
 
-Segment *NextSegment(Segments* segments,Segment *segment,index_t node)
+index_t FindClosestSegmentHeading(Nodes *nodes,Segments *segments,Ways *ways,index_t node1,double heading,Profile *profile)
 {
- if(segment->node1==node)
-   {
-#if SLIM
-    index_t index=IndexSegment(segments,segment);
-    index++;
+ Segment *segment;
+ index_t best_seg=NO_SEGMENT;
+ double best_difference=360;
 
-    if(index>=segments->file.number)
-       return(NULL);
-    segment=LookupSegment(segments,index,1);
-    if(segment->node1!=node)
-       return(NULL);
-    else
-       return(segment);
-#else
-    segment++;
-    if(IndexSegment(segments,segment)>=segments->file.number || segment->node1!=node)
-       return(NULL);
-    else
-       return(segment);
-#endif
-   }
+ if(IsFakeNode(node1))
+    segment=FirstFakeSegment(node1);
  else
+    segment=FirstSegment(segments,nodes,node1,1);
+
+ while(segment)
    {
-    if(segment->next2==NO_NODE)
-       return(NULL);
+    Way *way;
+    index_t node2,seg2;
+    double bearing,difference;
+
+    node2=OtherNode(segment,node1);  /* need this here because we use node2 at the end of the loop */
+
+    if(!IsNormalSegment(segment))
+       goto endloop;
+
+    if(profile->oneway && IsOnewayFrom(segment,node1))
+       goto endloop;
+
+    if(IsFakeNode(node1) || IsFakeNode(node2))
+       seg2=IndexFakeSegment(segment);
     else
-       return(LookupSegment(segments,segment->next2,1));
+       seg2=IndexSegment(segments,segment);
+
+    way=LookupWay(ways,segment->way,1);
+
+    if(!(way->allow&profile->allow))
+       goto endloop;
+
+    bearing=BearingAngle(nodes,segment,node1);
+
+    difference=(heading-bearing);
+
+    if(difference<-180) difference+=360;
+    if(difference> 180) difference-=360;
+
+    if(difference<0) difference=-difference;
+
+    if(difference<best_difference)
+      {
+       best_difference=difference;
+       best_seg=seg2;
+      }
+
+   endloop:
+
+    if(IsFakeNode(node1))
+       segment=NextFakeSegment(segment,node1);
+    else if(IsFakeNode(node2))
+       segment=NULL; /* cannot call NextSegment() with a fake segment */
+    else
+       segment=NextSegment(segments,segment,node1);
    }
+
+ return(best_seg);
 }
- 
- 
+
+
 /*++++++++++++++++++++++++++++++++++++++
   Calculate the distance between two locations.
 
@@ -162,9 +201,9 @@ distance_t Distance(double lat1,double lon1,double lat2,double lon2)
 
 
 /*++++++++++++++++++++++++++++++++++++++
-  Calculate the duration of segment.
+  Calculate the duration of travel on a segment.
 
-  duration_t Duration Returns the duration of travel between the nodes.
+  duration_t Duration Returns the duration of travel.
 
   Segment *segment The segment to traverse.
 
@@ -195,4 +234,107 @@ duration_t Duration(Segment *segment,Way *way,Profile *profile)
     else
        return distance_speed_to_duration(distance,speed2);
    }
+}
+
+
+/*++++++++++++++++++++++++++++++++++++++
+  Calculate the angle to turn at a junction from segment1 to segment2 at node.
+
+  double TurnAngle Returns a value in the range -180 to +180 indicating the angle to turn.
+
+  Nodes *nodes The set of nodes to use.
+
+  Segment *segment1 The current segment.
+
+  Segment *segment2 The next segment.
+
+  index_t node The node at which they join.
+
+  Straight ahead is zero, turning to the right is positive (e.g. +90 degrees) and turning to the left is negative (e.g. -90 degrees).
+  Angles are calculated using flat Cartesian lat/long grid approximation (after scaling longitude due to latitude).
+  ++++++++++++++++++++++++++++++++++++++*/
+
+double TurnAngle(Nodes *nodes,Segment *segment1,Segment *segment2,index_t node)
+{
+ double lat1,latm,lat2;
+ double lon1,lonm,lon2;
+ double angle1,angle2,angle;
+ index_t node1,node2;
+
+ node1=OtherNode(segment1,node);
+ node2=OtherNode(segment2,node);
+
+ if(IsFakeNode(node1))
+    GetFakeLatLong(node1,&lat1,&lon1);
+ else
+    GetLatLong(nodes,node1,&lat1,&lon1);
+
+ if(IsFakeNode(node))
+    GetFakeLatLong(node,&latm,&lonm);
+ else
+    GetLatLong(nodes,node,&latm,&lonm);
+
+ if(IsFakeNode(node2))
+    GetFakeLatLong(node2,&lat2,&lon2);
+ else
+    GetLatLong(nodes,node2,&lat2,&lon2);
+
+ angle1=atan2((lonm-lon1)*cos(latm),(latm-lat1));
+ angle2=atan2((lon2-lonm)*cos(latm),(lat2-latm));
+
+ angle=angle2-angle1;
+
+ angle=radians_to_degrees(angle);
+
+ if(angle<-180) angle+=360;
+ if(angle> 180) angle-=360;
+
+ return(angle);
+}
+
+
+/*++++++++++++++++++++++++++++++++++++++
+  Calculate the bearing of a segment when heading to the given node.
+
+  double BearingAngle Returns a value in the range 0 to 359 indicating the bearing.
+
+  Nodes *nodes The set of nodes to use.
+
+  Segment *segment The segment.
+
+  index_t node The node to finish.
+
+  Angles are calculated using flat Cartesian lat/long grid approximation (after scaling longitude due to latitude).
+  ++++++++++++++++++++++++++++++++++++++*/
+
+double BearingAngle(Nodes *nodes,Segment *segment,index_t node)
+{
+ double lat1,lat2;
+ double lon1,lon2;
+ double angle;
+ index_t node1,node2;
+
+ node1=node;
+ node2=OtherNode(segment,node);
+
+ if(IsFakeNode(node1))
+    GetFakeLatLong(node1,&lat1,&lon1);
+ else
+    GetLatLong(nodes,node1,&lat1,&lon1);
+
+ if(IsFakeNode(node2))
+    GetFakeLatLong(node2,&lat2,&lon2);
+ else
+    GetLatLong(nodes,node2,&lat2,&lon2);
+
+ angle=atan2((lat2-lat1),(lon2-lon1)*cos(lat1));
+
+ angle=radians_to_degrees(angle);
+
+ angle=270-angle;
+
+ if(angle<  0) angle+=360;
+ if(angle>360) angle-=360;
+
+ return(angle);
 }

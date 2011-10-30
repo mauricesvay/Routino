@@ -1,3 +1,128 @@
+Version 2.1 of Routino released : Sun Oct 23 2011
+-------------------------------------------------
+
+Bug fixes:
+  Speed up the routing by a factor of 5 by improving data handling functions.
+  Speed up database generation by reducing the default number of iterations.
+  Fix the handling of the 'except' tag on turn restrictions.
+  Fix the 'make install' option for the XML files.
+  Add some more typecasts when printing data from filedumper program.
+  Make the CGI script more robust if shortest/fastest is not passed in.
+
+Note: this version is compatible with databases from version 2.1.
+
+
+Version 2.1 of Routino released : Mon Oct 3 2011
+------------------------------------------------
+
+Bug fixes:
+  Fix bug in pathological cases with binary search (don't crash).
+  Make stricter checks for closest nodes just like in v2.0.3 for segments.
+  Fix routing bug where start node is a super-node and finish is close by.
+
+OSM tagging:
+  More testing of turn relations; invalid or useless ones are discarded.
+  An error log file can be generated to record parsing and processing errors.
+
+Configuration Files:
+  Add new options in the tagging rules XML file.
+  Add extra tagging rules to handle many problems found in the error log for UK.
+  Create special-use tagging rule files for walking, riding and driving.
+
+Test cases:
+  Create new test case for bug fixed in v2.0.3.
+  Save expected results to allow future regressions to be found.
+
+Note: this version is not compatible with databases from earlier versions.
+
+
+Version 2.0.3 of Routino released : Thu Aug 4 2011
+--------------------------------------------------
+
+Bug fixes:
+  Handle start node being a super-node with no previous segment (don't crash).
+  Make stricter checks against the profile when finding the closest segment.
+  Find a valid route if the start and end point are the same location.
+  Choose the better route if one with and one without super-nodes are available.
+
+Note: this version is compatible with databases from versions 2.0, 2.0.x.
+
+
+Version 2.0.2 of Routino released : Sun June 26 2011
+----------------------------------------------------
+
+Bug fixes:
+  Fix error with handling ferry routes (were ignored).
+  Force roundabouts to be one-way (was present in v1.5.1).
+  Handle super-nodes with no segments when processing (don't crash).
+
+Code improvements:
+  Use C99 standard by default and fix related warnings.
+  More code tidy-up for 32/64 bit node and index types.
+  Free some memory in various places (not serious leaks).
+
+Note: this version is compatible with databases from versions 2.0, 2.0.1.
+
+
+Version 2.0.1 of Routino released : Tue June 7 2011
+---------------------------------------------------
+
+Bug fixes:
+  Turn relations that specify missing nodes/ways are deleted (don't crash).
+  Shorten the messages printed by planetsplitter to keep below 80 characters.
+
+Code improvements:
+  Various code tidy-ups and 32/64 bit node and index improvements.
+
+OSM Tagging:
+  Check whether node/way/relation IDs fit in 32-bits (code ready for 64-bits).
+
+Note: this version is compatible with databases from version 2.0.
+
+
+Version 2.0 of Routino released : Mon May 30 2011
+-------------------------------------------------
+
+Bug fixes:
+  Fix mis-spelling with surface=asphalt tag
+  Routes between two waypoints on the same segment now work.
+  Fix reading of numeric entities from XML files (store as UTF-8 internally).
+  Fix turn description in HTML file (angles were biased to the right).
+  Fix possibility of occasionally missing turn information from output files.
+
+Test cases:
+  Added test cases for routing in slim and non-slim modes.
+
+Documentation:
+  Update documentation to reflect changes in program usage and function.
+  Install the license file in the documentation directory.
+
+OSM tagging:
+  Process the tags associated with turn restriction relations.
+  Remove the roundabout type from the parsing.
+  Add parsing of mini-roundabouts.
+
+Configuration Files:
+  Update profiles with new options related to turn restrictions.
+
+Web pages:
+  Change to OpenLayers v2.10.
+  Visualiser can display turn restrictions.
+  Put the profile information into separate files and auto-generate them.
+
+planetsplitter:
+  Store information about turn restriction relations.
+  Quite a large code re-organisation - now faster and uses less memory.
+
+router:
+  Take turn restriction relations into account when routing.
+  Continue same direction of travel at each waypoint (unless dead-end).
+  Add a new option to specify an initial direction to start travel.
+
+filedumper:
+  Print out statistics about what highways are included in the database.
+
+
 Version 1.5.1 of Routino released : Sat Nov 13 2010
 ---------------------------------------------------
 
@@ -32,7 +157,7 @@ Bug fixes:
 Documentation:
   Update documentation to reflect changes in program usage and function.
 
-OSM tagging
+OSM tagging:
   Traffic restrictions on nodes are now included in default tagging file.
   Added processing for ferry routes (as pseudo-highway type 'ferry').
   Process foot and bicycle route relations to create new properties.
@@ -42,7 +167,7 @@ Configuration Files:
   Added ferry information to profiles.
   Added foot and bicycle route relation processing.
 
-planetsplitter
+planetsplitter:
   The slim mode now includes the output data as well as the temporary data.
   The slim mode is now a separate executable and not a command line option.
   Traffic restrictions on nodes are now understood when parsing OSM files.
@@ -99,14 +224,14 @@ Bug fixes:
   Fix bug with profile preferences when optimising a route.
   Stricter check on profile validity before starting routing.
 
-planetsplitter
+planetsplitter:
   Add --parse-only and --process-only options (for incremental parsing).
   Allow filenames to be specified on command line (default is still stdin).
   Improved the '--help' information to describe all options.
   Remove --transport, --not-highway, --not-property options (use config file).
   Use tag transformation rules in configuration file not hard-coded.
 
-router
+router:
   Removed compiled-in profiles and use profiles loaded from XML file.
   Improved the '--help' information to describe all options.
   Change the name of the --profile-json and --profile-perl options.
@@ -117,11 +242,11 @@ router
   Added options to specify file of translations and language to use.
   Remove copyright.txt file and put information into translations file.
 
-filedumper
+filedumper:
   Improved the '--help' information to describe all options.
   Added the option to dump an OSM file containing database contents.
 
-Web Pages
+Web Pages:
   Combined generic map CSS into one file (not copied in two).
   Much better support for IE6/7/8 with browser detection but not perfect.
   Re-organised and tidied up the Javascript.
@@ -144,7 +269,7 @@ Bug fixes:
   Check the command line values for filedumper --dump options.
   Made the verbose output consistent between different places.
 
-OSM tagging
+OSM tagging:
   Recognise "designation" tag to determine designated paths.
   Recognise "steps" tag to determine the highway type.
   Recognise "wheelchair" tag to determine if wheelchairs are allowed on highway.
@@ -154,20 +279,20 @@ OSM tagging
   Recognise "bridge" tag to determine if a highway is a bridge.
   Recognise "tunnel" tag to determine if a highway is a tunnel.
 
-New Features
+New Features:
   Remove "bridleway" and "footway" highway types and use "path" highway instead.
   Added "steps" as a new highway type separate from the "path" type.
   Added "wheelchair" and "moped" to the list of possible transports.
   Added "paved", "multilane", "bridge", "tunnel" to list of highway properties.
 
-Web Pages
+Web Pages:
   Updated for new features listed above.
   Added popup to display instructions for each step in route on mouse-over.
   Added buttons next to waypoints for: add / remove / move up / move down.
   Highlight user selectable parts of form in yellow on mouse-over.
   A few small changes, improved CSS, improved Javascript.
 
-router
+router:
   For each waypoint choose closest point on a segment and not just closest node.
   Added the ability to set preferences based on highway properties.
   Changed the text output formats to include bearing and turn information.
@@ -176,59 +301,59 @@ router
 Version 1.2 of Routino released : Wed Oct 21 2009
 -------------------------------------------------
 
-OSM tagging
+OSM tagging:
   Recognise tags "vehicle" and "motor_vehicle".
   Handle duplicate ways in the input OSM file (e.g. concatenation of 2 files).
 
-Database
+Database:
   Identical ways are combined to reduce database size (~80% fewer ways stored).
 
-Routing
+Routing:
   Fix weight, height, width, length restriction routing.
   Allow up to 99 waypoints to be specified instead of 9.
 
-Visualiser
+Visualiser:
   Don't display speed limits for tracks and paths unless a value is set.
   Draw all super-segments that cross the selected boundary.
 
-Web Pages
+Web Pages:
   A few small changes, improved CSS, improved Javascript.
   Changed marker colour when waypoint not selected.
 
-planetsplitter
+planetsplitter:
   Optional slim mode uses minimal memory at the expense of temporary files.
 
-router
+router:
   Less CPU time for routing (~30% less).
 
-filedumper
+filedumper:
   Allow dumping individual nodes, segments and ways (for debug).
 
 
 Version 1.1 of Routino released : Sat Jun 13 2009
 -------------------------------------------------
 
-Inputs
+Inputs:
   Improve parsing of OSM file (imperial units).
   Ignore nodes that are missing from the input OSM file.
 
-Outputs
+Outputs:
   Create GPX route files as well as GPX track files.
   Read in an optional copyright.txt file and include contents in output.
   Make better choices about what to output in the abbreviated text file.
 
-Routing
+Routing:
   Allow generating a route with intermediate waypoints.
   Use preferences for highway types instead of yes/no choice.
   Choice of closest node to start/finish points ensures transport allowed.
 
-Visualiser
+Visualiser:
   Added data extraction function for viewing routing database data.
 
-Web Pages
+Web Pages:
   Include full set of web pages for creating customised online router.
 
-Documentation
+Documentation:
   Included NEWS.txt file.
   Included documentation for installation of web pages.
 

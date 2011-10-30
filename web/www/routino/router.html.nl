@@ -6,7 +6,7 @@
 
  Part of the Routino routing software.
 
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  Dutch translation by Jan Jansen (August 2010).
 
@@ -46,6 +46,7 @@
 <![endif]-->
 
 <!-- Router specific features -->
+<script src="profiles.js" type="text/javascript"></script>
 <script src="router.js" type="text/javascript"></script>
 <link href="router.css" type="text/css" rel="stylesheet">
 
@@ -335,6 +336,7 @@
         <div id="hideshow_restriction_div" style="display: none;">
           <table>
             <tr><td>Volg Eenrichtingsverkeer:<td><input name="restrict-oneway" type="checkbox"    onchange="formSetRestriction('oneway')"><!-- oneway --><td>
+            <tr><td>Obey turn restrictions:  <td><input name="restrict-turns"  type="checkbox"    onchange="formSetRestriction('turns' )"><!-- turns  --><td>
             <tr><td>Gewicht:                 <td><input name="restrict-weight" type="text" size=3 onchange="formSetRestriction('weight')"><!-- weight --><td> ton
             <tr><td>Hoogte:                  <td><input name="restrict-height" type="text" size=3 onchange="formSetRestriction('height')"><!-- height --><td> meter
             <tr><td>Breedte:                 <td><input name="restrict-width"  type="text" size=3 onchange="formSetRestriction('width' )"><!-- width  --><td> meter
@@ -429,11 +431,25 @@
     <div class="hideshow_box">
       <span class="hideshow_title">Status</span>
       <div id="result_status">
-        <span id="result_status_not_run"                        ><b><i>Router niet in gebruik</i></b></span>
-        <span id="result_status_running"  style="display: none;"><b>Router werkt...</b></span>
-        <span id="result_status_complete" style="display: none;"><b>Routing voltooid</b></span>
-        <span id="result_status_error"    style="display: none;"><b>Router error</b></span>
-        <span id="result_status_failed"   style="display: none;"><b>Router werkt niet</b></span>
+        <div id="result_status_not_run">
+          <b><i>Router niet in gebruik</i></b>
+        </div>
+        <div id="result_status_running"  style="display: none;">
+          <b>Router werkt...</b>
+        </div>
+        <div id="result_status_complete" style="display: none;">
+          <b>Routing voltooid</b>
+          <br>
+          <a id="router_log_complete" target="router_log" href="#">View Details</a>
+        </div>
+        <div id="result_status_error"    style="display: none;">
+          <b>Router error</b>
+          <br>
+          <a id="router_log_error" target="router_log" href="#">View Details</a>
+        </div>
+        <div id="result_status_failed"   style="display: none;">
+          <b>Router werkt niet</b>
+        </div>
       </div>
     </div>
 

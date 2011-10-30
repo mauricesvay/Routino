@@ -3,7 +3,7 @@
 //
 // Part of the Routino routing software.
 //
-// This file Copyright 2008-2010 Andrew M. Bishop
+// This file Copyright 2008-2011 Andrew M. Bishop
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -28,6 +28,7 @@ var data_types=[
                 "junctions",
                 "super",
                 "oneway",
+                "turns",
                 "speed",
                 "weight",
                 "height",
@@ -64,11 +65,13 @@ var super_node_style,super_segment_style;
 
 
 //
-// Oneway styles
+// Oneway and turn restriction styles
 //
 
 var hex={0: "00", 1: "11",  2: "22",  3: "33",  4: "44",  5: "55",  6: "66",  7: "77",
          8: "88", 9: "99", 10: "AA", 11: "BB", 12: "CC", 13: "DD", 14: "EE", 15: "FF"};
+
+var turn_restriction_style;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -183,6 +186,8 @@ function map_init(lat,lon,zoom)
 
  super_node_style   =new OpenLayers.Style({},{stroke: false, pointRadius: 3,fillColor  : "#FF0000"});
  super_segment_style=new OpenLayers.Style({},{fill: false  , strokeWidth: 2,strokeColor: "#FF0000"});
+
+ turn_restriction_style=new OpenLayers.Style({},{fill: false, strokeWidth: 2,strokeColor: "#FF0000"});
 
  // Add a boxes layer
 
@@ -331,6 +336,9 @@ function displayData(datatype)
     break;
    case 'oneway':
     OpenLayers.loadURL(url,null,null,runOnewaySuccess,runFailure);
+    break;
+   case 'turns':
+    OpenLayers.loadURL(url,null,null,runTurnsSuccess,runFailure);
     break;
    case 'speed':
    case 'weight':
@@ -529,6 +537,67 @@ function runOnewaySuccess(response)
 
  var div_status=document.getElementById("result_status");
  div_status.innerHTML = "Processed " + (lines.length-2) + " oneway segments";
+}
+
+
+//
+// Success in getting the turn restrictions data
+//
+
+function runTurnsSuccess(response)
+{
+ var lines=response.responseText.split('\n');
+
+// This won't update the browser window
+// var div_status=document.getElementById("result_status");
+// div_status.innerHTML = "Processing " + (lines.length-2) + " turn restrictions ...";
+
+ var features=[];
+
+ for(var line=0;line<lines.length;line++)
+   {
+    var words=lines[line].split(' ');
+
+    if(line == 0)
+      {
+       var lat1=words[0];
+       var lon1=words[1];
+       var lat2=words[2];
+       var lon2=words[3];
+
+       var bounds = new OpenLayers.Bounds(lon1,lat1,lon2,lat2).transform(epsg4326,map.getProjectionObject());
+
+       box = new OpenLayers.Marker.Box(bounds);
+
+       layerBoxes.addMarker(box);
+      }
+    else if(words[0] != "")
+      {
+       var lat1=words[0];
+       var lon1=words[1];
+       var lat2=words[2];
+       var lon2=words[3];
+       var lat3=words[4];
+       var lon3=words[5];
+
+       var lonlat1= new OpenLayers.LonLat(lon1,lat1).transform(epsg4326,epsg900913);
+       var lonlat2= new OpenLayers.LonLat(lon2,lat2).transform(epsg4326,epsg900913);
+       var lonlat3= new OpenLayers.LonLat(lon3,lat3).transform(epsg4326,epsg900913);
+
+       var point1 = new OpenLayers.Geometry.Point(lonlat1.lon,lonlat1.lat);
+       var point2 = new OpenLayers.Geometry.Point(lonlat2.lon,lonlat2.lat);
+       var point3 = new OpenLayers.Geometry.Point(lonlat3.lon,lonlat3.lat);
+
+       var segments = new OpenLayers.Geometry.LineString([point1,point2,point3]);
+
+       features.push(new OpenLayers.Feature.Vector(segments,{},turn_restriction_style));
+      }
+   }
+
+ layerVectors.addFeatures(features);
+
+ var div_status=document.getElementById("result_status");
+ div_status.innerHTML = "Processed " + (lines.length-2) + " turn restrictions";
 }
 
 

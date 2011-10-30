@@ -4,7 +4,7 @@
 #
 # Part of the Routino routing software.
 #
-# This file Copyright 2008-2010 Andrew M. Bishop
+# This file Copyright 2008-2011 Andrew M. Bishop
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -39,7 +39,7 @@ $query=new CGI;
               "latmax" => "[-0-9.]+",
               "lonmin" => "[-0-9.]+",
               "lonmax" => "[-0-9.]+",
-              "data"   => "(junctions|super|oneway|speed|weight|height|width|length)"
+              "data"   => "(junctions|super|oneway|turns|speed|weight|height|width|length)"
              );
 
 # Validate the CGI parameters, ignore invalid ones
@@ -68,6 +68,7 @@ foreach $key (@rawparams)
          "speed"     => 0.2,
          "super"     => 0.2,
          "oneway"    => 0.2,
+         "turns"     => 0.3,
          "weight"    => 0.3,
          "height"    => 0.3,
          "width"     => 0.3,

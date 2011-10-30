@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/types.h,v 1.48 2010/09/17 17:43:41 amb Exp $
-
  Type definitions
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -25,6 +23,7 @@
 #ifndef TYPES_H
 #define TYPES_H    /*+ To stop multiple inclusions. +*/
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <math.h>
 
@@ -36,6 +35,10 @@
 
 /* Constants and macros for handling them */
 
+/*+ The number of waypoints allowed to be specified. +*/
+#define NWAYPOINTS 99
+
+
 /*+ An undefined node index. +*/
 #define NO_NODE        (~(index_t)0)
 
@@ -44,6 +47,9 @@
 
 /*+ An undefined way index. +*/
 #define NO_WAY         (~(index_t)0)
+
+/*+ An undefined relation index. +*/
+#define NO_RELATION    (~(index_t)0)
 
 
 /*+ The lowest number allowed for a fake node. +*/
@@ -62,11 +68,23 @@
 /*+ A flag to mark a node as a super-node. +*/
 #define NODE_SUPER     ((uint16_t)0x8000)
 
+/*+ A flag to mark a node as suitable for a U-turn. +*/
+#define NODE_UTURN     ((uint16_t)0x4000)
+
+/*+ A flag to mark a node as a mini-roundabout. +*/
+#define NODE_MINIRNDBT ((uint16_t)0x2000)
+
+/*+ A flag to mark a node as a turn relation via node. +*/
+#define NODE_TURNRSTRCT ((uint16_t)0x1000)
+
+/*+ A flag to mark a node as a turn relation via node. +*/
+#define NODE_TURNRSTRCT2 ((uint16_t)0x0800)
+
 
 /*+ A flag to mark a segment as one-way from node1 to node2. +*/
 #define ONEWAY_1TO2    ((distance_t)0x80000000)
 
-/*+ A flag to mark a segment as one-way node2 to node1. +*/
+/*+ A flag to mark a segment as one-way from node2 to node1. +*/
 #define ONEWAY_2TO1    ((distance_t)0x40000000)
 
 /*+ A flag to mark a segment as a super-segment. +*/
@@ -92,17 +110,23 @@
 /* Simple Types */
 
 
-/*+ A node, segment or way index. +*/
+/*+ A node, segment, way or relation index. +*/
 typedef uint32_t index_t;
 
+/*+ A printf formatting string for an index_t type (this should match the index_t definition above). +*/
+#define Pindex_t PRIu32         /* PRIu32 and PRIu64 are defined in intypes.h */
 
-/*+ A node latitude or longitude. +*/
+
+/*+ A node latitude or longitude (range: +/-pi*LAT_LONG_SCALE = +/-3.14*1024*65536 = ~29 bits). +*/
 typedef int32_t  latlong_t;
 
-/*+ A node latitude or longitude bin number. +*/
+/*+ A node latitude or longitude bin number (range: +/-pi*LAT_LONG_SCALE/LAT_LONG_BIN = +/-3.14*1024 = ~13 bits). +*/
 typedef int16_t  ll_bin_t;
 
-/*+ A node latitude or longitude offset. +*/
+/*+ A node latitude and longitude bin number (range: +/-(pi*LAT_LONG_SCALE/LAT_LONG_BIN)^2 = +/-(3.14*1024)^2 = ~26 bits). +*/
+typedef int32_t  ll_bin2_t;
+
+/*+ A node latitude or longitude offset (range: 0 -> LAT_LONG_BIN-1 = 0 -> 65535 = 16 bits). +*/
 typedef uint16_t ll_off_t;
 
 
@@ -112,6 +136,7 @@ typedef uint16_t ll_off_t;
 /*+ Conversion from a bin number to a latlong (integer latitude or longitude). +*/
 #define bin_to_latlong(xxx) ((latlong_t)(xxx)*LAT_LONG_BIN)
 
+
 /*+ Conversion from a latlong (integer latitude or longitude) to a bin offset. +*/
 #define latlong_to_off(xxx) (ll_off_t)((latlong_t)(xxx)&(LAT_LONG_BIN-1))
 
@@ -120,7 +145,7 @@ typedef uint16_t ll_off_t;
 
 
 /*+ Conversion from a latitude or longitude in radians to a latlong (integer latitude or longitude). +*/
-#define radians_to_latlong(xxx) ((latlong_t)floor((xxx)*LAT_LONG_SCALE))
+#define radians_to_latlong(xxx) ((latlong_t)floor((xxx)*LAT_LONG_SCALE+0.5))
 
 /*+ Conversion from a latlong (integer latitude or longitude) to a latitude or longitude in radians. +*/
 #define latlong_to_radians(xxx) ((double)(xxx)/LAT_LONG_SCALE)
@@ -146,7 +171,7 @@ typedef float score_t;
 /*+ Conversion from distance_t to kilometres. +*/
 #define distance_to_km(xx) ((double)(xx)/1000.0)
 
-/*+ Conversion from metres to distance_t. +*/
+/*+ Conversion from kilometres to distance_t. +*/
 #define km_to_distance(xx) ((distance_t)((double)(xx)*1000.0))
 
 /*+ Conversion from duration_t to minutes. +*/
@@ -162,10 +187,10 @@ typedef float score_t;
 #define distance_speed_to_duration(xx,yy) ((duration_t)(((double)(xx)/(double)(yy))*(36000.0/1000.0)))
 
 
-/*+ The type of a way. +*/
-typedef uint8_t waytype_t;
+/*+ The type of a highway. +*/
+typedef uint8_t highway_t;
 
-/*+ The different types of a way. +*/
+/*+ The different types of a highway. +*/
 typedef enum _Highway
  {
   Way_Motorway    = 1,
@@ -184,15 +209,43 @@ typedef enum _Highway
 
   Way_Count       =14,       /* One more than the number of highway types. */
 
-  Way_OneWay      =32,
-  Way_Roundabout  =64
+  Way_OneWay      =32
  }
  Highway;
 
 #define HIGHWAY(xx) ((xx)&0x1f)
 
+/*+ A bitmask of multiple highway types. +*/
+typedef uint16_t highways_t;
 
-/*+ The different methods of transport. +*/
+#define HIGHWAYS(xx)  (1<<(HIGHWAY(xx)-1))
+
+/*+ The different types of a highway as a bitmask. +*/
+typedef enum _Highways
+ {
+  Highways_None         = 0,
+
+  Highways_Motorway     = HIGHWAYS(Way_Motorway    ),
+  Highways_Trunk        = HIGHWAYS(Way_Trunk       ),
+  Highways_Primary      = HIGHWAYS(Way_Primary     ),
+  Highways_Secondary    = HIGHWAYS(Way_Secondary   ),
+  Highways_Tertiary     = HIGHWAYS(Way_Tertiary    ),
+  Highways_Unclassified = HIGHWAYS(Way_Unclassified),
+  Highways_Residential  = HIGHWAYS(Way_Residential ),
+  Highways_Service      = HIGHWAYS(Way_Service     ),
+  Highways_Track        = HIGHWAYS(Way_Track       ),
+  Highways_Cycleway     = HIGHWAYS(Way_Cycleway    ),
+  Highways_Path         = HIGHWAYS(Way_Path        ),
+  Highways_Steps        = HIGHWAYS(Way_Steps       ),
+  Highways_Ferry        = HIGHWAYS(Way_Ferry       )
+ }
+ Highways;
+
+
+/*+ The type of a transport. +*/
+typedef uint8_t transport_t;
+
+/*+ The different types of transport. +*/
 typedef enum _Transport
  {
   Transport_None       =  0,
@@ -213,33 +266,36 @@ typedef enum _Transport
  Transport;
 
 
-/*+ The allowed traffic on a way. +*/
-typedef uint16_t allow_t;
+/*+ A bitmask of multiple transport types. +*/
+typedef uint16_t transports_t;
 
-#define ALLOWED(xx)  (1<<((xx)-1))
+#define TRANSPORTS(xx)  (1<<((xx)-1))
 
-/*+ The different allowed traffic on a way. +*/
-typedef enum _Allowed
+/*+ The different types of transport as a bitmask. +*/
+typedef enum _Transports
  {
-  Allow_None       = 0,
+  Transports_None       = 0,
 
-  Allow_Foot       = ALLOWED(Transport_Foot      ),
-  Allow_Horse      = ALLOWED(Transport_Horse     ),
-  Allow_Wheelchair = ALLOWED(Transport_Wheelchair),
-  Allow_Bicycle    = ALLOWED(Transport_Bicycle   ),
-  Allow_Moped      = ALLOWED(Transport_Moped     ),
-  Allow_Motorbike  = ALLOWED(Transport_Motorbike ),
-  Allow_Motorcar   = ALLOWED(Transport_Motorcar  ),
-  Allow_Goods      = ALLOWED(Transport_Goods     ),
-  Allow_HGV        = ALLOWED(Transport_HGV       ),
-  Allow_PSV        = ALLOWED(Transport_PSV       ),
+  Transports_Foot       = TRANSPORTS(Transport_Foot      ),
+  Transports_Horse      = TRANSPORTS(Transport_Horse     ),
+  Transports_Wheelchair = TRANSPORTS(Transport_Wheelchair),
+  Transports_Bicycle    = TRANSPORTS(Transport_Bicycle   ),
+  Transports_Moped      = TRANSPORTS(Transport_Moped     ),
+  Transports_Motorbike  = TRANSPORTS(Transport_Motorbike ),
+  Transports_Motorcar   = TRANSPORTS(Transport_Motorcar  ),
+  Transports_Goods      = TRANSPORTS(Transport_Goods     ),
+  Transports_HGV        = TRANSPORTS(Transport_HGV       ),
+  Transports_PSV        = TRANSPORTS(Transport_PSV       ),
 
-  Allow_ALL        = 65535
+  Transports_ALL        = 65535
  }
- Allowed;
+ Transports;
 
 
-/*+ The individual properties of a highway. +*/
+/*+ The type of a property. +*/
+typedef uint8_t property_t;
+
+/*+ The different types of property. +*/
 typedef enum _Property
  {
   Property_None         = 0,
@@ -256,12 +312,12 @@ typedef enum _Property
  Property;
 
 
-/*+ The combined set of properties of a way. +*/
-typedef uint8_t wayprop_t;
+/*+ A bitmask of multiple properties. +*/
+typedef uint8_t properties_t;
 
 #define PROPERTIES(xx)  (1<<((xx)-1))
 
-/*+ The different properties of a way. +*/
+/*+ The different properties as a bitmask. +*/
 typedef enum _Properties
  {
   Properties_None         = 0,
@@ -281,16 +337,16 @@ typedef enum _Properties
 /*+ The speed limit of a way, measured in km/hour. +*/
 typedef uint8_t speed_t;
 
-/*+ The maximum weight of a way, measured in 0.2 tonnes. +*/
+/*+ The maximum weight of a way, measured in multiples of 0.2 tonnes. +*/
 typedef uint8_t weight_t;
 
-/*+ The maximum height of a way, measured in 0.1 metres. +*/
+/*+ The maximum height of a way, measured in multiples of 0.1 metres. +*/
 typedef uint8_t height_t;
 
-/*+ The maximum width of a way, measured in 0.1 metres. +*/
+/*+ The maximum width of a way, measured in multiples of 0.1 metres. +*/
 typedef uint8_t width_t;
 
-/*+ The maximum length of a way, measured in 0.1 metres. +*/
+/*+ The maximum length of a way, measured in multiples of 0.1 metres. +*/
 typedef uint8_t length_t;
 
 
@@ -339,8 +395,12 @@ typedef struct _Way Way;
 
 typedef struct _Ways Ways;
 
+typedef struct _TurnRelation TurnRelation;
 
-/* Functions */
+typedef struct _Relations Relations;
+
+
+/* Functions in types.c */
 
 Highway HighwayType(const char *highway);
 Transport TransportType(const char *transport);
@@ -350,8 +410,9 @@ const char *HighwayName(Highway highway);
 const char *TransportName(Transport transport);
 const char *PropertyName(Property property);
 
-const char *AllowedNameList(allow_t allowed);
-const char *PropertiesNameList(wayprop_t properties);
+const char *HighwaysNameList(highways_t highways);
+const char *AllowedNameList(transports_t allowed);
+const char *PropertiesNameList(properties_t properties);
 
 const char *HighwayList(void);
 const char *TransportList(void);

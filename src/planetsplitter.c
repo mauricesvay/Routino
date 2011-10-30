@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/planetsplitter.c,v 1.82 2010/11/13 14:22:28 amb Exp $
-
  OSM planet file splitter.
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -69,8 +67,8 @@ int main(int argc,char** argv)
  WaysX      *Ways;
  RelationsX *Relations;
  int         iteration=0,quit=0;
- int         max_iterations=10;
- char       *dirname=NULL,*prefix=NULL,*tagging=NULL;
+ int         max_iterations=5;
+ char       *dirname=NULL,*prefix=NULL,*tagging=NULL,*errorlog=NULL;
  int         option_parse_only=0,option_process_only=0;
  int         option_filenames=0;
  int         arg;
@@ -95,6 +93,10 @@ int main(int argc,char** argv)
        option_process_only=1;
     else if(!strcmp(argv[arg],"--loggable"))
        option_loggable=1;
+    else if(!strcmp(argv[arg],"--errorlog"))
+       errorlog="error.log";
+    else if(!strncmp(argv[arg],"--errorlog=",11))
+       errorlog=&argv[arg][11];
     else if(!strncmp(argv[arg],"--max-iterations=",17))
        max_iterations=atoi(&argv[arg][17]);
     else if(!strncmp(argv[arg],"--tagging=",10))
@@ -169,6 +171,11 @@ int main(int argc,char** argv)
 
  Relations=NewRelationList(option_parse_only||option_process_only);
 
+ /* Create the error log file */
+
+ if(errorlog)
+    open_errorlog(FileName(dirname,prefix,errorlog),option_parse_only||option_process_only);
+
  /* Parse the file */
 
  if(option_filenames)
@@ -216,6 +223,8 @@ int main(int argc,char** argv)
     return(0);
    }
 
+ DeleteXMLTaggingRules();
+
  /* Process the data */
 
  printf("\nProcess OSM Data\n================\n\n");
@@ -231,16 +240,6 @@ int main(int argc,char** argv)
 
  SortRelationList(Relations);
 
- /* Process the route relations (must be before compacting the ways) */
-
- ProcessRouteRelations(Relations,Ways);
-
- FreeRelationList(Relations,0);
-
- /* Compact the ways (must be before measuring the segments) */
-
- CompactWayList(Ways);
-
  /* Remove bad segments (must be after sorting the nodes and segments) */
 
  RemoveBadSegments(Nodes,Segments);
@@ -249,15 +248,35 @@ int main(int argc,char** argv)
 
  RemoveNonHighwayNodes(Nodes,Segments);
 
+ /* Process the route relations and first part of turn relations (must be before compacting the ways) */
+
+ ProcessRouteRelations(Relations,Ways);
+
+ ProcessTurnRelations1(Relations,Nodes,Ways);
+
+ /* Compact the ways (must be before measuring the segments) */
+
+ CompactWayList(Ways);
+
  /* Measure the segments and replace node/way id with index (must be after removing non-highway nodes) */
 
- UpdateSegments(Segments,Nodes,Ways);
+ MeasureSegments(Segments,Nodes,Ways);
+
+ /* Index the segments */
+
+ IndexSegments(Segments,Nodes);
+
+ /* Convert the turn relations from ways into nodes */
+
+ ProcessTurnRelations2(Relations,Nodes,Segments,Ways);
 
 
  /* Repeated iteration on Super-Nodes and Super-Segments */
 
  do
    {
+    int nsuper;
+
     printf("\nProcess Super-Data (iteration %d)\n================================%s\n\n",iteration,iteration>9?"=":"");
     fflush(stdout);
 
@@ -269,7 +288,9 @@ int main(int argc,char** argv)
 
        /* Select the super-segments */
 
-       SuperSegments=CreateSuperSegments(Nodes,Segments,Ways,iteration);
+       SuperSegments=CreateSuperSegments(Nodes,Segments,Ways);
+
+       nsuper=Segments->number;
       }
     else
       {
@@ -281,10 +302,9 @@ int main(int argc,char** argv)
 
        /* Select the super-segments */
 
-       SuperSegments2=CreateSuperSegments(Nodes,SuperSegments,Ways,iteration);
+       SuperSegments2=CreateSuperSegments(Nodes,SuperSegments,Ways);
 
-       if(SuperSegments->xnumber==SuperSegments2->xnumber)
-          quit=1;
+       nsuper=SuperSegments->number;
 
        FreeSegmentList(SuperSegments,0);
 
@@ -298,6 +318,15 @@ int main(int argc,char** argv)
     /* Remove duplicated super-segments */
 
     DeduplicateSegments(SuperSegments,Nodes,Ways);
+
+    /* Index the segments */
+
+    IndexSegments(SuperSegments,Nodes);
+
+    /* Check for end condition */
+
+    if(SuperSegments->number==nsuper)
+       quit=1;
 
     iteration++;
 
@@ -321,38 +350,38 @@ int main(int argc,char** argv)
 
  Segments=MergedSegments;
 
- /* Rotate segments so that node1<node2 */
-
- RotateSegments(Segments);
-
- /* Sort the segments */
+ /* Sort and re-index the segments */
 
  SortSegmentList(Segments);
 
- /* Remove duplicated segments */
-
- DeduplicateSegments(Segments,Nodes,Ways);
+ IndexSegments(Segments,Nodes);
 
  /* Cross reference the nodes and segments */
 
  printf("\nCross-Reference Nodes and Segments\n==================================\n\n");
  fflush(stdout);
 
- /* Sort the node list geographically */
+ /* Sort the nodes geographically and update the segment indexes accordingly */
 
  SortNodeListGeographically(Nodes);
 
- /* Create the real segments and nodes */
+ UpdateSegments(Segments,Nodes,Ways);
 
- CreateRealNodes(Nodes,iteration);
+ /* Sort the segments geographically and re-index them */
 
- CreateRealSegments(Segments,Ways);
-
- /* Fix the segment and node indexes */
-
- IndexNodes(Nodes,Segments);
+ SortSegmentList(Segments);
 
  IndexSegments(Segments,Nodes);
+
+ /* Update the nodes */
+
+ UpdateNodes(Nodes,Segments);
+
+ /* Fix the turn relations after sorting nodes geographically */
+
+ UpdateTurnRelations(Relations,Nodes,Segments);
+
+ SortTurnRelationList(Relations);
 
  /* Output the results */
 
@@ -377,6 +406,17 @@ int main(int argc,char** argv)
 
  FreeWayList(Ways,0);
 
+ /* Write out the relations */
+
+ SaveRelationList(Relations,FileName(dirname,prefix,"relations.mem"));
+
+ FreeRelationList(Relations,0);
+
+ /* Close the error log file */
+
+ if(errorlog)
+    close_errorlog();
+
  return(0);
 }
 
@@ -399,7 +439,7 @@ static void print_usage(int detail,const char *argerr,const char *err)
          "                      [--sort-ram-size=<size>]\n"
          "                      [--tmpdir=<dirname>]\n"
          "                      [--parse-only | --process-only]\n"
-         "                      [--loggable]\n"
+         "                      [--loggable] [--errorlog[=<name>]]\n"
          "                      [--max-iterations=<number>]\n"
          "                      [--tagging=<filename>]\n"
          "                      [<filename.osm> ...]\n");
@@ -435,8 +475,11 @@ static void print_usage(int detail,const char *argerr,const char *err)
             "--process-only            Process the stored results from previous option.\n"
             "\n"
             "--loggable                Print progress messages suitable for logging to file.\n"
+            "--errorlog[=<name>]       Log parsing errors to 'error.log' or the given name\n"
+            "                          (the '--dir' and '--prefix' options are applied).\n"
             "\n"
-            "--max-iterations=<number> The number of iterations for finding super-nodes.\n"
+            "--max-iterations=<number> The number of iterations for finding super-nodes\n"
+            "                          (defaults to 5).\n"
             "\n"
             "--tagging=<filename>      The name of the XML file containing the tagging rules\n"
             "                          (defaults to 'tagging.xml' with '--dir' and\n"

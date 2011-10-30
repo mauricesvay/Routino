@@ -1,11 +1,9 @@
 /***************************************
- $Header: /home/amb/routino/src/RCS/queue.c,v 1.7 2009/11/13 19:24:11 amb Exp $
-
  Queue data type functions.
 
  Part of the Routino routing software.
  ******************/ /******************
- This file Copyright 2008,2009 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -27,6 +25,10 @@
 #include <stdlib.h>
 
 #include "results.h"
+
+
+/*+ The size of the increment to the allocated memory. +*/
+#define QUEUE_INCREMENT 1024
 
 
 /*+ A queue of results. +*/
@@ -51,7 +53,7 @@ Queue *NewQueueList(void)
 
  queue=(Queue*)malloc(sizeof(Queue));
 
- queue->nallocated=1023;
+ queue->nallocated=QUEUE_INCREMENT;
  queue->noccupied=0;
 
  queue->data=(Result**)malloc(queue->nallocated*sizeof(Result*));
@@ -91,14 +93,14 @@ void InsertInQueue(Queue *queue,Result *result)
 
  if(result->queued==NOT_QUEUED)
    {
+    queue->noccupied++;
+    index=queue->noccupied;
+
     if(queue->noccupied==queue->nallocated)
       {
-       queue->nallocated=2*queue->nallocated+1;
+       queue->nallocated=queue->nallocated+QUEUE_INCREMENT;
        queue->data=(Result**)realloc((void*)queue->data,queue->nallocated*sizeof(Result*));
       }
-
-    index=queue->noccupied;
-    queue->noccupied++;
 
     queue->data[index]=result;
     queue->data[index]->queued=index;
@@ -110,13 +112,13 @@ void InsertInQueue(Queue *queue,Result *result)
 
  /* Bubble up the new value */
 
- while(index>0 &&
-       queue->data[index]->sortby<queue->data[(index-1)/2]->sortby)
+ while(index>1 &&
+       queue->data[index]->sortby<queue->data[index/2]->sortby)
    {
     uint32_t newindex;
     Result *temp;
 
-    newindex=(index-1)/2;
+    newindex=index/2;
 
     temp=queue->data[index];
     queue->data[index]=queue->data[newindex];
@@ -149,27 +151,27 @@ Result *PopFromQueue(Queue *queue)
  if(queue->noccupied==0)
     return(NULL);
 
- retval=queue->data[0];
+ retval=queue->data[1];
  retval->queued=NOT_QUEUED;
 
- index=0;
- queue->noccupied--;
+ index=1;
 
  queue->data[index]=queue->data[queue->noccupied];
+ queue->noccupied--;
 
  /* Bubble down the newly promoted value */
 
- while((2*index+2)<queue->noccupied &&
-       (queue->data[index]->sortby>queue->data[2*index+1]->sortby ||
-        queue->data[index]->sortby>queue->data[2*index+2]->sortby))
+ while((2*index)<queue->noccupied &&
+       (queue->data[index]->sortby>queue->data[2*index  ]->sortby ||
+        queue->data[index]->sortby>queue->data[2*index+1]->sortby))
    {
     uint32_t newindex;
     Result *temp;
 
-    if(queue->data[2*index+1]->sortby<queue->data[2*index+2]->sortby)
-       newindex=2*index+1;
+    if(queue->data[2*index]->sortby<queue->data[2*index+1]->sortby)
+       newindex=2*index;
     else
-       newindex=2*index+2;
+       newindex=2*index+1;
 
     temp=queue->data[newindex];
     queue->data[newindex]=queue->data[index];
@@ -181,13 +183,13 @@ Result *PopFromQueue(Queue *queue)
     index=newindex;
    }
 
- if((2*index+2)==queue->noccupied &&
-    queue->data[index]->sortby>queue->data[2*index+1]->sortby)
+ if((2*index)==queue->noccupied &&
+    queue->data[index]->sortby>queue->data[2*index]->sortby)
    {
     uint32_t newindex;
     Result *temp;
 
-    newindex=2*index+1;
+    newindex=2*index;
 
     temp=queue->data[newindex];
     queue->data[newindex]=queue->data[index];

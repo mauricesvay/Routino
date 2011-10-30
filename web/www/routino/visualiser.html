@@ -6,7 +6,7 @@
 
  Part of the Routino routing software.
 
- This file Copyright 2008-2010 Andrew M. Bishop
+ This file Copyright 2008-2011 Andrew M. Bishop
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -65,8 +65,7 @@
     <div class="hideshow_box">
       <span class="hideshow_title">Routino Data Visualiser</span>
       This web page allows visualisation of the data that Routino uses for routing.
-      Only data relevant for routing is displayed and some will therefore be excluded
-      (e.g. private roads).
+      Only data relevant for routing is displayed and some will therefore be excluded.
       <div align="center">
         <a target="other" href="http://www.routino.org/">Routino Website</a>
         |
@@ -113,7 +112,8 @@
       <span id="hideshow_super_hide" onclick="hideshow_hide('super');" class="hideshow_hide">Hide</span>
       <input type="button" id="super" onclick="displayData('super');" value="Display Super Segments">
       <div id="hideshow_super_div" style="display: none;">
-        Each super-node and the associated super-segments are shown (see algorithm page for description).
+        Each super-node and the associated super-segments are shown (see
+        algorithm page for description).
       </div>
     </div>
 
@@ -122,8 +122,19 @@
       <span id="hideshow_oneway_hide" onclick="hideshow_hide('oneway');" class="hideshow_hide">Hide</span>
       <input type="button" id="oneway" onclick="displayData('oneway');" value="Display One-way Segments">
       <div id="hideshow_oneway_div" style="display: none;">
-        Each one-way segment is shown with a coloured triangle indicating the allowed direction.
-        The colours of the triangles depend on the bearing of the highway segment.
+        Each one-way segment is shown with a coloured triangle indicating the
+        allowed direction.  The colours of the triangles depend on the bearing
+        of the highway segment.
+      </div>
+    </div>
+
+    <div class="hideshow_box">
+      <span id="hideshow_turns_show" onclick="hideshow_show('turns');" class="hideshow_show">Show</span>
+      <span id="hideshow_turns_hide" onclick="hideshow_hide('turns');" class="hideshow_hide">Hide</span>
+      <input type="button" id="turns" onclick="displayData('turns');" value="Display Turn Restrictions">
+      <div id="hideshow_turns_div" style="display: none;">
+        Each turn restrictions is shown with a line indicating the disallowed
+        turn.
       </div>
     </div>
 
